@@ -13,8 +13,8 @@ class Lab {
         catch(e) {
             console.error(`        Rule is invalid`);
         }
-
         this.apiKey = rawLab.apiKey;
+        this.authMethods = rawLab.auth;
         this.userCollection = database.collection('_users');
         this.io = socketIO.of(`/${rawLab.id}`);
         this.io.use(this.ioMiddleware.bind(this));
@@ -43,15 +43,15 @@ class Lab {
         next();
     }
     onConnection(socket) {
-        console.log('onConnection!');
-        socket.on('register', this.register);
-        socket.on('login', this.login.bind(this));
-        socket.on('logout', this.logout);
-        socket.on('find', this.find);
-        socket.on('update', this.update);
-        socket.on('subscribe', this.subscribe);
-        socket.on('unsubscribe', this.unsubscribe);
-        socket.on('disconnect', this.onDisconnect);
+        console.log('onConnection!' + socket.id);
+        socket.on('register', this.register.bind(this.socket));
+        socket.on('login', this.login.bind(this, socket));
+        socket.on('logout', this.logout.bind(this, socket));
+        socket.on('find', this.find.bind(this.socket));
+        socket.on('update', this.update.bind(this.socket));
+        socket.on('subscribe', this.subscribe.bind(this.socket));
+        socket.on('unsubscribe', this.unsubscribe.bind(this.socket));
+        socket.on('disconnect', this.onDisconnect.bind(this.socket));
     }
     onDisconnect(reason) {
 
@@ -59,19 +59,28 @@ class Lab {
     register() {
 
     }
-    async login(data, cb) {
+    async login(socket, data, cb) {
         console.log('login!');
+        if (typeof this.authMethods[data.method] === 'undefined') {
+            return cb({error: true, reason: 'authentication method is unsupported'})
+        }
+        let user;
         switch (data.method) {
             case 'email':
-                let user = await this.userCollection.findOne({email: data.email});
+                user = await this.userCollection.findOne({ email: data.email });
                 if (!user) return cb({error: true, reason: 'user not found'});
 
                 let isMatch = await bcrypt.compare(user.password, data.bassword);
                 if (!isMatch) return cb({error: true, reason: 'incorrect password'});
                 socket.user = user;
                 break;
+            case 'ldap':
+                user = await this.userCollection.findOne({ ldapUser: data.user });
+                if (!user) return cb({error: true, reason: 'ldap user not found'});
+
+                socket.user = user;
             default:
-                cb({error: true, reason: 'unknown authentication method'});
+                cb({error: true, reason: 'authentication method is under development'});
                 break;
         }
     }
