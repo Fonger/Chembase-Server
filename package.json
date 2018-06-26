@@ -4,16 +4,31 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "server": "node src/index.js",
+    "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "balanced-match": "^1.0.0",
     "bcrypt": "^2.0.1",
     "bcrypt-promise": "^2.0.0",
+    "bson": "^3.0.0",
+    "bson-ext": "^2.0.0",
+    "chalk": "^2.4.1",
+    "expr-eval": "^1.2.1",
     "express": "^4.16.3",
+    "fast-deep-equal": "^2.0.1",
+    "isolated-vm": "^1.6.1",
+    "jsep": "^0.3.4",
     "mongo-parse": "^2.1.0",
     "mongodb": "^3.0.10",
-    "socket.io": "^2.1.1"
+    "mongodb-extended-json": "^1.10.0",
+    "socket.io": "^2.1.1",
+    "socket.io-redis": "^5.2.0"
+  },
+  "devDependencies": {
+    "jshint": "^2.9.5"
   }
 }

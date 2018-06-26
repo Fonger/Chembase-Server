@@ -1,12 +1,74 @@
 <!DOCTYPE HTML>
 <html>
-    <head>
-        <title>Chembase Web Client SDK Demo</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-    </head>
-    <body>
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="chembase-sdk.js"></script>
-    </body>
+
+<head>
+    <title>Chembase Web Client SDK Demo</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body>
+    <script src="http://localhost:8080/socket.io/socket.io.js"></script>
+    <script src="chembase-sdk.js"></script>
+
+    <script>
+        var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        async function start() {
+            try {
+                var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
+
+                let beaker = lab.beaker('beaker1');
+                let compounds = await beaker.find();
+
+                compounds.forEach(compound => {
+                    console.log(compound.data());
+                });
+
+                let compound;
+                compound = await beaker.get("5b238e5a02fc62a0327aabcc");
+                console.log(compound.data());
+                /*compound = await beaker.create({ testString: 'Hello', testNumber: 123, testDecimal: 123.45, testDate: new Date() });
+                console.log(compound);
+                console.log(compound.data())*/
+                
+
+                let sub = await beaker.subscribe(function (change) {
+                    console.log(change);
+                })
+                console.log(sub);
+
+                await sleep(1000);
+                let result = await compound.update({ ggg: 5 });
+                console.log(result);
+                await sleep(1000);
+                result = await compound.update({ ggg: 6 });
+                console.log(result);
+                await sleep(1000);
+                result = await compound.update({ ggg: 7 });
+                console.log(result);
+
+                compound = await beaker.get("5b238e5a02fc62a0327aabcc");
+                console.log(compound);
+
+                let unsub = await beaker.unsubscribe()
+                console.log(unsub);
+                console.log('unsub')
+
+                //await sleep(4000);
+                //lab.socket.disconnect();
+
+                lab.login({
+                    method: 'email'
+                }, function (result) {
+                    console.log(result);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        start();
+    </script>
+    <button onclick="login()">123</button>
+</body>
+
 </html>
