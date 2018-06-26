@@ -27,9 +27,8 @@
                 let compound;
                 compound = await beaker.get("5b238e5a02fc62a0327aabcc");
                 console.log(compound.data());
-                /*compound = await beaker.create({ testString: 'Hello', testNumber: 123, testDecimal: 123.45, testDate: new Date() });
-                console.log(compound);
-                console.log(compound.data())*/
+                compound = await beaker.create({ testString: 'Hello', testNumber: 123, testDecimal: 123.45, testDate: new Date() });
+                console.log(compound.data())
                 
 
                 let sub = await beaker.subscribe(function (change) {

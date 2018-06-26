@@ -6,6 +6,7 @@
   "scripts": {
     "server": "node src/index.js",
     "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk",
+    "database": "mongod --replSet mongo-repl --dbpath ~/mongodb-data --bind_ip 127.0.0.1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -28,7 +29,5 @@
     "socket.io": "^2.1.1",
     "socket.io-redis": "^5.2.0"
   },
-  "devDependencies": {
-    "jshint": "^2.9.5"
-  }
+  "devDependencies": {}
 }

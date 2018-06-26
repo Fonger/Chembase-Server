@@ -7,6 +7,10 @@ const BSON = require('../utils/bsonSerializer');
 
 require('../utils/errorjson');
 
+console.log(BSON.Int32(241241).valueOf() == BSON.Int32(241241).valueOf());
+
+process.exit();
+
 class Lab {
     constructor(rawLab, rawDeveloper, socketIO) {
         console.log(`    Lab id: ${rawLab.id} key: ${rawLab.apiKey}`);
@@ -153,7 +157,7 @@ class Lab {
             let collection = this.database.collection(query.beakerId);
             query.options.raw = true;
             let result = await collection.find(BSON.deserialize(Buffer.from(query.condition)), query.options).toArray();
-            
+
             cb({
                 error: false,
                 data: result
@@ -182,7 +186,8 @@ class Lab {
         try {
             this.checkRequest(request);
             let collection = this.database.collection(request.beakerId);
-            let compound = await collection.findOne({ _id: ObjectID.createFromHexString(request._id) });
+            let queryById = { _id: ObjectID.createFromHexString(request._id) };
+            let compound = await collection.findOne(queryById);
             if (!compound) throw new Error('Compound does not exist');
 
             /* TODO: rule validation & replace option */
@@ -192,17 +197,15 @@ class Lab {
             };
 
             if (typeof compound.__version === 'number') {
+                queryById.__version = compound.__version;
                 update.$inc = { __version: 1 };
             } else {
                 update.$set.__version = 0;
-                compound.__version = 0;
             }
 
-            let response = await collection.updateOne({
-                _id: new ObjectID.createFromHexString(request._id),
-                __version: compound.__version
-            }, update, { upsert: false })
+            let response = await collection.updateOne(queryById, update, { upsert: false })
 
+            console.error(response);
             if (response.result.n === 0) {
                 throw new Error('Compound does not exist or have write conflict');
             }

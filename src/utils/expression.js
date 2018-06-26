@@ -5,6 +5,9 @@ const deepEqual = require('fast-deep-equal');
 const compoundIdentifier = 'compound';
 const newCompoundIdentifier = 'request.compound';
 
+/* TODO: support compare BSON.Long */
+/* TODO: support compare BSON.ObjectId */
+
 parseAST.removeBinaryOp('|');
 parseAST.removeBinaryOp('&');
 parseAST.removeBinaryOp('^');
@@ -23,7 +26,6 @@ class PotentialMatch {
         return this.potential;
     }
 }
-
 
 class CompoundCondition {
     constructor(baseField, query) {
