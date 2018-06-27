@@ -1,12 +1,12 @@
-'use strict';
+'use strict'
+/* global Map Promise */
 
 /**
  * Dependencies
  */
 
-var slice = Array.prototype.slice.call;
-var util = require('util');
-var utils = require('./utils');
+var slice = Array.prototype.slice.call
+var utils = require('./utils')
 
 /**
  * Query constructor used for building queries.
@@ -21,23 +21,22 @@ var utils = require('./utils');
  */
 
 function Query (options) {
-  if (!(this instanceof Query))
-    return new Query(options);
+  if (!(this instanceof Query)) { return new Query(options) }
 
-  var proto = this.constructor.prototype;
+  var proto = this.constructor.prototype
 
-  this.op = proto.op || undefined;
+  this.op = proto.op || undefined
 
-  this.options = {};
-  this._conditions = {};
+  this.options = {}
+  this._conditions = {}
 
-  this._path = proto._path || undefined;
-  this._distinct = proto._distinct || undefined;
-  this._collection = proto._collection || undefined;
-  this._traceFunction = proto._traceFunction || undefined;
+  this._path = proto._path || undefined
+  this._distinct = proto._distinct || undefined
+  this._collection = proto._collection || undefined
+  this._traceFunction = proto._traceFunction || undefined
 
   if (options) {
-    this.setOptions(options);
+    this.setOptions(options)
   }
 }
 
@@ -64,15 +63,14 @@ function Query (options) {
  */
 
 Query.prototype.where = function (path) {
-  if (!this.op) this.op = 'find';
+  if (!this.op) this.op = 'find'
 
-
-  if ('string' == typeof path) {
-    this._path = path;
-    return this;
+  if (typeof path === 'string') {
+    this._path = path
+    return this
   }
 
-  throw new TypeError('path must be a string');
+  throw new TypeError('path must be a string')
 }
 
 /**
@@ -88,10 +86,10 @@ Query.prototype.where = function (path) {
  */
 
 Query.prototype.equals = function equals (val) {
-  this._ensurePath('equals');
-  var path = this._path;
-  this._conditions[path] = val;
-  return this;
+  this._ensurePath('equals')
+  var path = this._path
+  this._conditions[path] = val
+  return this
 }
 
 /**
@@ -116,10 +114,10 @@ Query.prototype.equals = function equals (val) {
  */
 
 Query.prototype.eq = function eq (val) {
-  this._ensurePath('eq');
-  var path = this._path;
-  this._conditions[path] = val;
-  return this;
+  this._ensurePath('eq')
+  var path = this._path
+  this._conditions[path] = val
+  return this
 }
 
 /**
@@ -135,10 +133,10 @@ Query.prototype.eq = function eq (val) {
  */
 
 Query.prototype.or = function or (array) {
-  var or = this._conditions.$or || (this._conditions.$or = []);
-  if (!utils.isArray(array)) array = [array];
-  or.push.apply(or, array);
-  return this;
+  var or = this._conditions.$or || (this._conditions.$or = [])
+  if (!utils.isArray(array)) array = [array]
+  or.push.apply(or, array)
+  return this
 }
 
 /**
@@ -154,10 +152,10 @@ Query.prototype.or = function or (array) {
  */
 
 Query.prototype.nor = function nor (array) {
-  var nor = this._conditions.$nor || (this._conditions.$nor = []);
-  if (!utils.isArray(array)) array = [array];
-  nor.push.apply(nor, array);
-  return this;
+  var nor = this._conditions.$nor || (this._conditions.$nor = [])
+  if (!utils.isArray(array)) array = [array]
+  nor.push.apply(nor, array)
+  return this
 }
 
 /**
@@ -174,10 +172,10 @@ Query.prototype.nor = function nor (array) {
  */
 
 Query.prototype.and = function and (array) {
-  var and = this._conditions.$and || (this._conditions.$and = []);
-  if (!Array.isArray(array)) array = [array];
-  and.push.apply(and, array);
-  return this;
+  var and = this._conditions.$and || (this._conditions.$and = [])
+  if (!Array.isArray(array)) array = [array]
+  and.push.apply(and, array)
+  return this
 }
 
 /**
@@ -327,23 +325,23 @@ Query.prototype.and = function and (array) {
 
 'gt gte lt lte ne in nin all regex size maxDistance minDistance'.split(' ').forEach(function ($conditional) {
   Query.prototype[$conditional] = function () {
-    var path, val;
+    var path, val
 
-    if (1 === arguments.length) {
-      this._ensurePath($conditional);
-      val = arguments[0];
-      path = this._path;
+    if (arguments.length === 1) {
+      this._ensurePath($conditional)
+      val = arguments[0]
+      path = this._path
     } else {
-      val = arguments[1];
-      path = arguments[0];
+      val = arguments[1]
+      path = arguments[0]
     }
 
-    var conds = this._conditions[path] === null || typeof this._conditions[path] === 'object' ?
-      this._conditions[path] :
-      (this._conditions[path] = {});
-    conds['$' + $conditional] = val;
-    return this;
-  };
+    var conds = this._conditions[path] === null || typeof this._conditions[path] === 'object'
+      ? this._conditions[path]
+      : (this._conditions[path] = {})
+    conds['$' + $conditional] = val
+    return this
+  }
 })
 
 /**
@@ -357,27 +355,27 @@ Query.prototype.and = function and (array) {
  */
 
 Query.prototype.mod = function () {
-  var val, path;
+  var val, path
 
-  if (1 === arguments.length) {
+  if (arguments.length === 1) {
     this._ensurePath('mod')
-    val = arguments[0];
-    path = this._path;
-  } else if (2 === arguments.length && !utils.isArray(arguments[1])) {
+    val = arguments[0]
+    path = this._path
+  } else if (arguments.length === 2 && !utils.isArray(arguments[1])) {
     this._ensurePath('mod')
-    val = slice(arguments);
-    path = this._path;
-  } else if (3 === arguments.length) {
-    val = slice(arguments, 1);
-    path = arguments[0];
+    val = slice(arguments)
+    path = this._path
+  } else if (arguments.length === 3) {
+    val = slice(arguments, 1)
+    path = arguments[0]
   } else {
-    val = arguments[1];
-    path = arguments[0];
+    val = arguments[1]
+    path = arguments[0]
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds.$mod = val;
-  return this;
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds.$mod = val
+  return this
 }
 
 /**
@@ -401,29 +399,29 @@ Query.prototype.mod = function () {
  */
 
 Query.prototype.exists = function () {
-  var path, val;
+  var path, val
 
-  if (0 === arguments.length) {
-    this._ensurePath('exists');
-    path = this._path;
-    val = true;
-  } else if (1 === arguments.length) {
-    if ('boolean' === typeof arguments[0]) {
-      this._ensurePath('exists');
-      path = this._path;
-      val = arguments[0];
+  if (arguments.length === 0) {
+    this._ensurePath('exists')
+    path = this._path
+    val = true
+  } else if (arguments.length === 1) {
+    if (typeof arguments[0] === 'boolean') {
+      this._ensurePath('exists')
+      path = this._path
+      val = arguments[0]
     } else {
-      path = arguments[0];
-      val = true;
+      path = arguments[0]
+      val = true
     }
-  } else if (2 === arguments.length) {
-    path = arguments[0];
-    val = arguments[1];
+  } else if (arguments.length === 2) {
+    path = arguments[0]
+    val = arguments[1]
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds.$exists = val;
-  return this;
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds.$exists = val
+  return this
 }
 
 /**
@@ -452,38 +450,37 @@ Query.prototype.exists = function () {
  */
 
 Query.prototype.elemMatch = function () {
-  if (null == arguments[0])
-    throw new TypeError("Invalid argument");
+  if (arguments[0] == null) { throw new TypeError('Invalid argument') }
 
-  var fn, path, criteria;
+  var fn, path, criteria
 
-  if ('function' === typeof arguments[0]) {
-    this._ensurePath('elemMatch');
-    path = this._path;
-    fn = arguments[0];
+  if (typeof arguments[0] === 'function') {
+    this._ensurePath('elemMatch')
+    path = this._path
+    fn = arguments[0]
   } else if (utils.isObject(arguments[0])) {
-    this._ensurePath('elemMatch');
-    path = this._path;
-    criteria = arguments[0];
-  } else if ('function' === typeof arguments[1]) {
-    path = arguments[0];
-    fn = arguments[1];
+    this._ensurePath('elemMatch')
+    path = this._path
+    criteria = arguments[0]
+  } else if (typeof arguments[1] === 'function') {
+    path = arguments[0]
+    fn = arguments[1]
   } else if (arguments[1] && utils.isObject(arguments[1])) {
-    path = arguments[0];
-    criteria = arguments[1];
+    path = arguments[0]
+    criteria = arguments[1]
   } else {
-    throw new TypeError("Invalid argument");
+    throw new TypeError('Invalid argument')
   }
 
   if (fn) {
-    criteria = new Query;
-    fn(criteria);
-    criteria = criteria._conditions;
+    criteria = new Query()
+    fn(criteria)
+    criteria = criteria._conditions
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds.$elemMatch = criteria;
-  return this;
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds.$elemMatch = criteria
+  return this
 }
 
 // Spatial queries
@@ -516,37 +513,32 @@ Query.prototype.elemMatch = function () {
 
 Query.prototype.within = function within () {
   // opinionated, must be used after where
-  this._ensurePath('within');
-  this._geoComparison = '$geoWithin';
+  this._ensurePath('within')
+  this._geoComparison = '$geoWithin'
 
-  if (0 === arguments.length) {
-    return this;
+  if (arguments.length === 0) {
+    return this
   }
 
-  if (2 === arguments.length) {
-    return this.box.apply(this, arguments);
-  } else if (2 < arguments.length) {
-    return this.polygon.apply(this, arguments);
+  if (arguments.length === 2) {
+    return this.box.apply(this, arguments)
+  } else if (arguments.length > 2) {
+    return this.polygon.apply(this, arguments)
   }
 
-  var area = arguments[0];
+  var area = arguments[0]
 
-  if (!area)
-    throw new TypeError('Invalid argument');
+  if (!area) { throw new TypeError('Invalid argument') }
 
-  if (area.center)
-    return this.circle(area);
+  if (area.center) { return this.circle(area) }
 
-  if (area.box)
-    return this.box.apply(this, area.box);
+  if (area.box) { return this.box.apply(this, area.box) }
 
-  if (area.polygon)
-    return this.polygon.apply(this, area.polygon);
+  if (area.polygon) { return this.polygon.apply(this, area.polygon) }
 
-  if (area.type && area.coordinates)
-    return this.geometry(area);
+  if (area.type && area.coordinates) { return this.geometry(area) }
 
-  throw new TypeError('Invalid argument');
+  throw new TypeError('Invalid argument')
 }
 
 /**
@@ -569,24 +561,24 @@ Query.prototype.within = function within () {
  */
 
 Query.prototype.box = function () {
-  var path, box;
+  var path, box
 
-  if (3 === arguments.length) {
+  if (arguments.length === 3) {
     // box('loc', [], [])
-    path = arguments[0];
-    box = [arguments[1], arguments[2]];
-  } else if (2 === arguments.length) {
+    path = arguments[0]
+    box = [arguments[1], arguments[2]]
+  } else if (arguments.length === 2) {
     // box([], [])
-    this._ensurePath('box');
-    path = this._path;
-    box = [arguments[0], arguments[1]];
+    this._ensurePath('box')
+    path = this._path
+    box = [arguments[0], arguments[1]]
   } else {
-    throw new TypeError("Invalid argument");
+    throw new TypeError('Invalid argument')
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds[this._geoComparison || $withinCmd] = { '$box': box  };
-  return this;
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds[this._geoComparison || '$geoWithin'] = { '$box': box }
+  return this
 }
 
 /**
@@ -605,22 +597,22 @@ Query.prototype.box = function () {
  */
 
 Query.prototype.polygon = function () {
-  var val, path;
+  var val, path
 
-  if ('string' == typeof arguments[0]) {
+  if (typeof arguments[0] === 'string') {
     // polygon('loc', [],[],[])
-    path = arguments[0];
-    val = slice(arguments, 1);
+    path = arguments[0]
+    val = slice(arguments, 1)
   } else {
     // polygon([],[],[])
-    this._ensurePath('polygon');
-    path = this._path;
-    val = slice(arguments);
+    this._ensurePath('polygon')
+    path = this._path
+    val = slice(arguments)
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds[this._geoComparison || $withinCmd] = { '$polygon': val };
-  return this;
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds[this._geoComparison || '$geoWithin'] = { '$polygon': val }
+  return this
 }
 
 /**
@@ -645,36 +637,34 @@ Query.prototype.polygon = function () {
  */
 
 Query.prototype.circle = function () {
-  var path, val;
+  var path, val
 
-  if (1 === arguments.length) {
-    this._ensurePath('circle');
-    path = this._path;
-    val = arguments[0];
-  } else if (2 === arguments.length) {
-    path = arguments[0];
-    val = arguments[1];
+  if (arguments.length === 1) {
+    this._ensurePath('circle')
+    path = this._path
+    val = arguments[0]
+  } else if (arguments.length === 2) {
+    path = arguments[0]
+    val = arguments[1]
   } else {
-    throw new TypeError("Invalid argument");
+    throw new TypeError('Invalid argument')
   }
 
-  if (!('radius' in val && val.center))
-    throw new Error('center and radius are required');
+  if (!('radius' in val && val.center)) { throw new Error('center and radius are required') }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
+  var conds = this._conditions[path] || (this._conditions[path] = {})
 
   var type = val.spherical
     ? '$centerSphere'
-    : '$center';
+    : '$center'
 
-  var wKey = this._geoComparison || $withinCmd;
-  conds[wKey] = {};
-  conds[wKey][type] = [val.center, val.radius];
+  var wKey = this._geoComparison || '$geoWithin'
+  conds[wKey] = {}
+  conds[wKey][type] = [val.center, val.radius]
 
-  if ('unique' in val)
-    conds[wKey].$uniqueDocs = !! val.unique;
+  if ('unique' in val) { conds[wKey].$uniqueDocs = !!val.unique }
 
-  return this;
+  return this
 }
 
 /**
@@ -699,64 +689,64 @@ Query.prototype.circle = function () {
  */
 
 Query.prototype.near = function near () {
-  var path, val;
+  var path, val
 
-  this._geoComparison = '$near';
+  this._geoComparison = '$near'
 
-  if (0 === arguments.length) {
-    return this;
-  } else if (1 === arguments.length) {
-    this._ensurePath('near');
-    path = this._path;
-    val = arguments[0];
-  } else if (2 === arguments.length) {
-    path = arguments[0];
-    val = arguments[1];
+  if (arguments.length === 0) {
+    return this
+  } else if (arguments.length === 1) {
+    this._ensurePath('near')
+    path = this._path
+    val = arguments[0]
+  } else if (arguments.length === 2) {
+    path = arguments[0]
+    val = arguments[1]
   } else {
-    throw new TypeError("Invalid argument");
+    throw new TypeError('Invalid argument')
   }
 
   if (!val.center) {
-    throw new Error('center is required');
+    throw new Error('center is required')
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
+  var conds = this._conditions[path] || (this._conditions[path] = {})
 
   var type = val.spherical
     ? '$nearSphere'
-    : '$near';
+    : '$near'
 
   // center could be a GeoJSON object or an Array
   if (Array.isArray(val.center)) {
-    conds[type] = val.center;
+    conds[type] = val.center
 
     var radius = 'maxDistance' in val
       ? val.maxDistance
-      : null;
+      : null
 
-    if (null != radius) {
-      conds.$maxDistance = radius;
+    if (radius != null) {
+      conds.$maxDistance = radius
     }
-    if (null != val.minDistance) {
-      conds.$minDistance = val.minDistance;
+    if (val.minDistance != null) {
+      conds.$minDistance = val.minDistance
     }
   } else {
     // GeoJSON?
-    if (val.center.type != 'Point' || !Array.isArray(val.center.coordinates)) {
-      throw new Error("Invalid GeoJSON specified for " + type);
+    if (val.center.type !== 'Point' || !Array.isArray(val.center.coordinates)) {
+      throw new Error('Invalid GeoJSON specified for ' + type)
     }
-    conds[type] = { $geometry : val.center };
+    conds[type] = { $geometry: val.center }
 
     // MongoDB 2.6 insists on maxDistance being in $near / $nearSphere
     if ('maxDistance' in val) {
-      conds[type]['$maxDistance'] = val.maxDistance;
+      conds[type]['$maxDistance'] = val.maxDistance
     }
     if ('minDistance' in val) {
-      conds[type]['$minDistance'] = val.minDistance;
+      conds[type]['$minDistance'] = val.minDistance
     }
   }
 
-  return this;
+  return this
 }
 
 /**
@@ -781,20 +771,19 @@ Query.prototype.near = function near () {
 
 Query.prototype.intersects = function intersects () {
   // opinionated, must be used after where
-  this._ensurePath('intersects');
+  this._ensurePath('intersects')
 
-  this._geoComparison = '$geoIntersects';
+  this._geoComparison = '$geoIntersects'
 
-  if (0 === arguments.length) {
-    return this;
+  if (arguments.length === 0) {
+    return this
   }
 
-  var area = arguments[0];
+  var area = arguments[0]
 
-  if (null != area && area.type && area.coordinates)
-    return this.geometry(area);
+  if (area != null && area.type && area.coordinates) { return this.geometry(area) }
 
-  throw new TypeError('Invalid argument');
+  throw new TypeError('Invalid argument')
 }
 
 /**
@@ -835,30 +824,30 @@ Query.prototype.intersects = function intersects () {
  */
 
 Query.prototype.geometry = function geometry () {
-  if (!('$geoWithin' == this._geoComparison ||
-        '$near' == this._geoComparison ||
-        '$geoIntersects' == this._geoComparison)) {
-    throw new Error('geometry() must come after `within()`, `intersects()`, or `near()');
+  if (!(this._geoComparison === '$geoWithin' ||
+        this._geoComparison === '$near' ||
+        this._geoComparison === '$geoIntersects')) {
+    throw new Error('geometry() must come after `within()`, `intersects()`, or `near()')
   }
 
-  var val, path;
+  var val, path
 
-  if (1 === arguments.length) {
-    this._ensurePath('geometry');
-    path = this._path;
-    val = arguments[0];
+  if (arguments.length === 1) {
+    this._ensurePath('geometry')
+    path = this._path
+    val = arguments[0]
   } else {
-    throw new TypeError("Invalid argument");
+    throw new TypeError('Invalid argument')
   }
 
   if (!(val.type && Array.isArray(val.coordinates))) {
-    throw new TypeError('Invalid argument');
+    throw new TypeError('Invalid argument')
   }
 
-  var conds = this._conditions[path] || (this._conditions[path] = {});
-  conds[this._geoComparison] = { $geometry: val };
+  var conds = this._conditions[path] || (this._conditions[path] = {})
+  conds[this._geoComparison] = { $geometry: val }
 
-  return this;
+  return this
 }
 
 // end spatial
@@ -890,41 +879,40 @@ Query.prototype.geometry = function geometry () {
  */
 
 Query.prototype.select = function select () {
-  var arg = arguments[0];
-  if (!arg) return this;
+  var arg = arguments[0]
+  if (!arg) return this
 
   if (arguments.length !== 1) {
-    throw new Error("Invalid select: select only takes 1 argument");
+    throw new Error('Invalid select: select only takes 1 argument')
   }
 
-  var fields = this._fields || (this._fields = {});
-  var type = typeof arg;
+  var fields = this._fields || (this._fields = {})
+  var type = typeof arg
 
-  if (('string' == type || utils.isArgumentsObject(arg)) &&
-    'number' == typeof arg.length || Array.isArray(arg)) {
-    if ('string' == type)
-      arg = arg.split(/\s+/);
+  if (((type === 'string' || utils.isArgumentsObject(arg)) &&
+    typeof arg.length === 'number') || Array.isArray(arg)) {
+    if (type === 'string') { arg = arg.split(/\s+/) }
 
     for (var i = 0, len = arg.length; i < len; ++i) {
-      var field = arg[i];
-      if (!field) continue;
-      var include = '-' == field[0] ? 0 : 1;
-      if (include === 0) field = field.substring(1);
-      fields[field] = include;
+      var field = arg[i]
+      if (!field) continue
+      var include = field[0] === '-' ? 0 : 1
+      if (include === 0) field = field.substring(1)
+      fields[field] = include
     }
 
-    return this;
+    return this
   }
 
   if (utils.isObject(arg)) {
-    var keys = utils.keys(arg);
-    for (var i = 0; i < keys.length; ++i) {
-      fields[keys[i]] = arg[keys[i]];
+    var keys = utils.keys(arg)
+    for (var j = 0; j < keys.length; ++j) {
+      fields[keys[j]] = arg[keys[j]]
     }
-    return this;
+    return this
   }
 
-  throw new TypeError('Invalid select() argument. Must be string or object.');
+  throw new TypeError('Invalid select() argument. Must be string or object.')
 }
 
 /**
@@ -952,55 +940,56 @@ Query.prototype.select = function select () {
  */
 
 Query.prototype.sort = function (arg) {
-  if (!arg) return this;
-  var len;
+  if (!arg) return this
+  var len
 
-  var type = typeof arg;
+  var type = typeof arg
+  var field
 
   // .sort([['field', 1], ['test', -1]])
   if (Array.isArray(arg)) {
-    len = arg.length;
+    len = arg.length
     for (var i = 0; i < arg.length; ++i) {
       if (!Array.isArray(arg[i])) {
-        throw new Error('Invalid sort() argument, must be array of arrays');
+        throw new Error('Invalid sort() argument, must be array of arrays')
       }
-      _pushArr(this.options, arg[i][0], arg[i][1]);
+      _pushArr(this.options, arg[i][0], arg[i][1])
     }
-    return this;
+    return this
   }
 
   // .sort('field -test')
-  if (1 === arguments.length && 'string' == type) {
-    arg = arg.split(/\s+/);
-    len = arg.length;
-    for (var i = 0; i < len; ++i) {
-      var field = arg[i];
-      if (!field) continue;
-      var ascend = '-' == field[0] ? -1 : 1;
-      if (ascend === -1) field = field.substring(1);
-      push(this.options, field, ascend);
+  if (arguments.length === 1 && type === 'string') {
+    arg = arg.split(/\s+/)
+    len = arg.length
+    for (var j = 0; i < len; ++i) {
+      field = arg[j]
+      if (!field) continue
+      var ascend = field[0] === '-' ? -1 : 1
+      if (ascend === -1) field = field.substring(1)
+      push(this.options, field, ascend)
     }
 
-    return this;
+    return this
   }
 
   // .sort({ field: 1, test: -1 })
   if (utils.isObject(arg)) {
-    var keys = utils.keys(arg);
-    for (var i = 0; i < keys.length; ++i) {
-      var field = keys[i];
-      push(this.options, field, arg[field]);
+    var keys = utils.keys(arg)
+    for (var k = 0; k < keys.length; ++k) {
+      field = keys[k]
+      push(this.options, field, arg[field])
     }
 
-    return this;
+    return this
   }
 
   if (typeof Map !== 'undefined' && arg instanceof Map) {
-    _pushMap(this.options, arg);
-    return this;
+    _pushMap(this.options, arg)
+    return this
   }
 
-  throw new TypeError('Invalid sort() argument. Must be a string, object, or array.');
+  throw new TypeError('Invalid sort() argument. Must be a string, object, or array.')
 }
 
 /*!
@@ -1011,59 +1000,61 @@ function push (opts, field, value) {
   if (Array.isArray(opts.sort)) {
     throw new TypeError("Can't mix sort syntaxes. Use either array or object:" +
       "\n- `.sort([['field', 1], ['test', -1]])`" +
-      "\n- `.sort({ field: 1, test: -1 })`");
+      '\n- `.sort({ field: 1, test: -1 })`')
   }
+
+  var s
 
   if (value && value.$meta) {
-    var s = opts.sort || (opts.sort = {});
-    s[field] = { $meta : value.$meta };
-    return;
+    s = opts.sort || (opts.sort = {})
+    s[field] = { $meta: value.$meta }
+    return
   }
 
-  var val = String(value || 1).toLowerCase();
+  var val = String(value || 1).toLowerCase()
   if (!/^(?:ascending|asc|descending|desc|1|-1)$/.test(val)) {
-    if (utils.isArray(value)) value = '['+value+']';
-    throw new TypeError('Invalid sort value: {' + field + ': ' + value + ' }');
+    if (utils.isArray(value)) value = '[' + value + ']'
+    throw new TypeError('Invalid sort value: {' + field + ': ' + value + ' }')
   }
   // store `sort` in a sane format
-  var s = opts.sort || (opts.sort = {});
+  s = opts.sort || (opts.sort = {})
   var valueStr = value.toString()
-                  .replace("asc", "1")
-                  .replace("ascending", "1")
-                  .replace("desc", "-1")
-                  .replace("descending", "-1");
-  s[field] = parseInt(valueStr, 10);
+    .replace('asc', '1')
+    .replace('ascending', '1')
+    .replace('desc', '-1')
+    .replace('descending', '-1')
+  s[field] = parseInt(valueStr, 10)
 }
 
 function _pushArr (opts, field, value) {
-  opts.sort = opts.sort || [];
+  opts.sort = opts.sort || []
   if (!Array.isArray(opts.sort)) {
     throw new TypeError("Can't mix sort syntaxes. Use either array or object:" +
       "\n- `.sort([['field', 1], ['test', -1]])`" +
-      "\n- `.sort({ field: 1, test: -1 })`");
+      '\n- `.sort({ field: 1, test: -1 })`')
   }
   var valueStr = value.toString()
-    .replace("asc", "1")
-    .replace("ascending", "1")
-    .replace("desc", "-1")
-    .replace("descending", "-1");
-  opts.sort.push([field, value]);
+    .replace('asc', '1')
+    .replace('ascending', '1')
+    .replace('desc', '-1')
+    .replace('descending', '-1')
+  opts.sort.push([field, valueStr])
 }
 
 function _pushMap (opts, map) {
-  opts.sort = opts.sort || new Map();
+  opts.sort = opts.sort || new Map()
   if (!(opts.sort instanceof Map)) {
     throw new TypeError("Can't mix sort syntaxes. Use either array or " +
-      "object or map consistently");
+      'object or map consistently')
   }
-  map.forEach(function(value, key) {
+  map.forEach(function (value, key) {
     var valueStr = value.toString()
-      .replace("asc", "1")
-      .replace("ascending", "1")
-      .replace("desc", "-1")
-      .replace("descending", "-1");
-    opts.sort.set(key, valueStr);
-  });
+      .replace('asc', '1')
+      .replace('ascending', '1')
+      .replace('desc', '-1')
+      .replace('descending', '-1')
+    opts.sort.set(key, valueStr)
+  })
 }
 
 /**
@@ -1103,9 +1094,9 @@ function _pushMap (opts, map) {
 
 ;['limit', 'skip'].forEach(function (method) {
   Query.prototype[method] = function (v) {
-    this.options[method] = v;
-    return this;
-  };
+    this.options[method] = v
+    return this
+  }
 })
 
 /**
@@ -1123,9 +1114,9 @@ function _pushMap (opts, map) {
  */
 
 Query.prototype.maxTime = function (v) {
-  this.options.maxTimeMS = v;
-  return this;
-};
+  this.options.maxTimeMS = v
+  return this
+}
 
 /**
  * Specifies this query as a `snapshot` query.
@@ -1146,12 +1137,11 @@ Query.prototype.maxTime = function (v) {
  */
 
 Query.prototype.snapshot = function () {
-
   this.options.snapshot = arguments.length
-    ? !! arguments[0]
+    ? !!arguments[0]
     : true
 
-  return this;
+  return this
 }
 
 /**
@@ -1172,32 +1162,32 @@ Query.prototype.snapshot = function () {
 Query.prototype.exec = function exec (op, callback) {
   switch (typeof op) {
     case 'function':
-      callback = op;
-      op = null;
-      break;
+      callback = op
+      op = null
+      break
     case 'string':
-      this.op = op;
-      break;
+      this.op = op
+      break
   }
 
-  //assert.ok(this.op, "Missing query type: (find, update, etc)");
+  if (!this.op) throw new Error('Missing query type')
 
-  if ('update' == this.op || 'remove' == this.op) {
-    callback || (callback = true);
+  if (this.op === 'update' || this.op === 'remove') {
+    callback || (callback = true)
   }
 
-  var self = this;
+  var self = this
 
-  if ('function' == typeof callback) {
-    this[this.op](callback);
+  if (typeof callback === 'function') {
+    this[this.op](callback)
   } else {
-    return new Query.Promise(function(success, error) {
-      self[self.op](function(err, val) {
-        if (err) error(err);
-        else success(val);
-        self = success = error = null;
-      });
-    });
+    return new Promise(function (resolve, reject) {
+      self[self.op](function (err, val) {
+        if (err) reject(err)
+        else resolve(val)
+        self = resolve = reject = null
+      })
+    })
   }
 }
 
@@ -1211,10 +1201,10 @@ Query.prototype.exec = function exec (op, callback) {
  * @api public
  */
 
-Query.prototype.thunk = function() {
-  var self = this;
-  return function(cb) {
-    self.exec(cb);
+Query.prototype.thunk = function () {
+  var self = this
+  return function (cb) {
+    self.exec(cb)
   }
 }
 
@@ -1228,16 +1218,16 @@ Query.prototype.thunk = function() {
  * @api public
  */
 
-Query.prototype.then = function(resolve, reject) {
-  var self = this;
-  var promise = new Query.Promise(function(success, error) {
-    self.exec(function(err, val) {
-      if (err) error(err);
-      else success(val);
-      self = success = error = null;
-    });
-  });
-  return promise.then(resolve, reject);
+Query.prototype.then = function (resolve, reject) {
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.exec(function (err, val) {
+      if (err) resolve(err)
+      else reject(val)
+      self = resolve = reject = null
+    })
+  })
+  return promise.then(resolve, reject)
 }
 
 /**
@@ -1248,9 +1238,9 @@ Query.prototype.then = function(resolve, reject) {
 
 Query.prototype._ensurePath = function (method) {
   if (!this._path) {
-    var msg = method + '() must be used after where() '
-                     + 'when called with these arguments'
-    throw new Error(msg);
+    var msg = method + '() must be used after where() ' +
+                     'when called with these arguments'
+    throw new Error(msg)
   }
 }
 
@@ -1258,5 +1248,4 @@ Query.prototype._ensurePath = function (method) {
  * Exports.
  */
 
-Query.Promise = Promise;
-module.exports = exports = Query;
+module.exports = exports = Query

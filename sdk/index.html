@@ -16,14 +16,20 @@
         async function start() {
             try {
                 var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
-
+                
                 let beaker = lab.beaker('beaker1');
+
+
+                let qcompound = await beaker.get("5b238e5a02fc62a0327aabcc");
+                
+                console.log(qcompound.data())
+                
                 let compounds = await beaker.find();
 
                 compounds.forEach(compound => {
                     console.log(compound.data());
                 });
-
+                
                 let compound;
                 compound = await beaker.get("5b238e5a02fc62a0327aabcc");
                 console.log(compound.data());
@@ -31,8 +37,9 @@
                 console.log(compound.data())
                 
 
-                let sub = await beaker.subscribe(function (change) {
-                    console.log(change);
+                let sub = await beaker.subscribe(function (err, change) {
+                    if (err) console.error(err)
+                    else console.log(change);
                 })
                 console.log(sub);
 

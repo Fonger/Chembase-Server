@@ -1,32 +1,39 @@
-var Query = require('./cquery');
-var Compound = require('./compound');
-var EJSON = require('mongodb-extended-json');
-var BSON = require('bson');
-var bson = new BSON();
+var BSON = require('bson')
+var Buffer = require('buffer').Buffer
 
-function Beaker(lab, beakerId) {
-    if (!(this instanceof Beaker))
-        return new Beaker(lab, beakerId);
-    if (!lab || lab.constructor.name !== 'Lab')
-        throw new TypeError('Must specify a valid lab');
-    if (!beakerId)
-        throw new Error('Must specify beaker id');
+var Query = require('./cquery')
+var Compound = require('./compound')
+var utils = require('./utils')
+var bson = new BSON()
 
-    this.beakerId = beakerId;
-    this._lab = lab;
-    this._subscriptionId = undefined;
-    this._changeHandler = undefined;
-    Query.call(this);
+/* global Promise */
+
+/**
+ * Beaker constructor used for building queries.
+ *
+ * @param {Lab} lab
+ * @param {String} beakerId
+ * @api public
+ */
+
+function Beaker (lab, beakerId) {
+  if (!(this instanceof Beaker)) { return new Beaker(lab, beakerId) }
+  if (!lab || lab.constructor.name !== 'Lab') { throw new TypeError('Must specify a valid lab') }
+  if (!beakerId) { throw new Error('Must specify beaker id') }
+
+  this.beakerId = beakerId
+  this._lab = lab
+  this._subscriptionId = undefined
+  this._changeHandler = undefined
+  Query.call(this)
 }
 
 /*!
  * inherit cquery
  */
 
-Beaker.prototype = Object.create(Query.prototype);
-Beaker.prototype.constructor = Beaker;
-
-
+Beaker.prototype = utils.create(Query.prototype)
+Beaker.prototype.constructor = Beaker
 
 /**
  * Create a compound with given object.
@@ -45,29 +52,29 @@ Beaker.prototype.constructor = Beaker;
  */
 
 Beaker.prototype.create = function (data, callback) {
-    var self = this;
+  var self = this
 
-    var request = {
-        beakerId: this.beakerId,
-        data: bson.serialize(data)
-    }
-    var promise = new Promise(function (resolve, reject) {
-        self._lab.socket.emit('create', request, function (result) {
-            if (result.error) return reject(result.error)
-            if (!result.data) return reject(new Error('This compound no longer exist'));
-            var compound = new Compound(self, result.data);
-            resolve(compound);
-        });
-    });
+  var request = {
+    beakerId: this.beakerId,
+    data: bson.serialize(data)
+  }
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('create', request, function (err, result) {
+      if (err) return reject(err)
+      if (!result.data) return reject(new Error('This compound no longer exist'))
+      var compound = new Compound(self, result.data)
+      resolve(compound)
+    })
+  })
 
-    if (callback) {
-        return promise.then(function (result) {
-            callback(null, result)
-        }, function (err) {
-            callback(err);
-        });
-    }
-    return promise;
+  if (callback) {
+    return promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
 }
 
 /**
@@ -87,28 +94,27 @@ Beaker.prototype.create = function (data, callback) {
  */
 
 Beaker.prototype.find = function (callback) {
-    this.op = 'find';
+  this.op = 'find'
 
-    if (!callback) return this;
+  if (!callback) return this
 
+  var query = {
+    beakerId: this.beakerId,
+    condition: bson.serialize(this._conditions),
+    options: this.options
+  }
+  var self = this
+  this._lab.socket.emit('find', query, function (err, result) {
+    if (err) return callback(result.error)
+    if (!result.data) return callback(new Error('No data'))
 
-    var query = {
-        beakerId: this.beakerId,
-        condition: bson.serialize(this._conditions),
-        options: this.options
-    };
-    var self = this;
-    this._lab.socket.emit('find', query, function (result) {
-        if (result.error) return callback(result.error);
-        if (!result.data) return callback(new Error('No data'));
+    var compounds = result.data.map(function (rawCompound) {
+      return new Compound(self, rawCompound)
+    })
+    callback(null, compounds)
+  })
 
-        var compounds = result.data.map(function (doc) {
-            return new Compound(self, doc);
-        });
-        callback(null, compounds);
-    });
-
-    return this;
+  return this
 }
 
 /**
@@ -128,29 +134,30 @@ Beaker.prototype.find = function (callback) {
  */
 
 Beaker.prototype.get = function (id, callback) {
-    var self = this;
+  this.op = null
 
-    var request = {
-        beakerId: this.beakerId,
-        _id: id
-    }
-    var promise = new Promise(function (resolve, reject) {
-        self._lab.socket.emit('get', request, function (result) {
-            if (result.error) return reject(result.error)
-            if (!result.data) return reject(new Error('This compound no longer exist'));
-            var compound = new Compound(self, result.data);
-            resolve(compound);
-        });
-    });
+  var request = {
+    beakerId: this.beakerId,
+    _id: id
+  }
 
-    if (callback) {
-        return promise.then(function (result) {
-            callback(null, result)
-        }, function (err) {
-            callback(err);
-        });
-    }
-    return promise;
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('get', request, function (err, result) {
+      if (err) return reject(err)
+      if (!result.data) return callback(new Error('This compound no longer exist'))
+      resolve(new Compound(self, result.data))
+    })
+  })
+
+  if (callback) {
+    promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
 }
 
 /**
@@ -164,16 +171,16 @@ Beaker.prototype.get = function (id, callback) {
  */
 
 Beaker.prototype.then = function (resolve, reject) {
-    if (!this.op) throw new Error('No operation specify.')
-    var self = this;
-    var promise = new Promise(function (success, fail) {
-        self[self.op](function (err, result) {
-            if (err) return fail(err);
-            success(result);
-        });
-        self = null;
-    });
-    return promise.then(resolve, reject);
+  if (!this.op) throw new Error('No operation specify.')
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self[self.op](function (err, result) {
+      if (err) return reject(err)
+      resolve(result)
+    })
+    self = null
+  })
+  return promise.then(resolve, reject)
 }
 
 /**
@@ -191,56 +198,79 @@ Beaker.prototype.then = function (resolve, reject) {
  */
 
 Beaker.prototype.subscribe = function (callback) {
-    if (!callback) throw new Error('Must have a callback');
-    if (this._subscriptionId) throw new Error('This beaker has a subscription already. Only one subscription per beaker is allowed.')
+  if (!callback) throw new Error('Must have a event callback')
+  if (this._subscriptionId) throw new Error('This beaker has a subscription already. Only one subscription per beaker is allowed.')
 
-    var query = {
-        beakerId: this.beakerId,
-        condition: this._conditions,
-    };
+  var query = {
+    beakerId: this.beakerId,
+    condition: this._conditions
+  }
 
-    var self = this;
+  var self = this
 
-    var promise = new Promise(function (resolve, reject) {
-        self._lab.socket.emit('subscribe', query, function (result) {
-            if (result.error) throw new Error(result.error);
-            if (!result.data) throw new Error('No data');
-            self._subscriptionId = result.data.subscriptionId;
-            self._changeHandler = function(change) {
-                callback(bson.deserialize(Buffer.from(change)));
-            }
-            self._lab.socket.on('change' + self._subscriptionId, self._changeHandler);
-            resolve(result.data);
-        });
-    });
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('subscribe', query, function (err, result) {
+      if (err) return reject(err)
+      if (!result.data) return reject(new Error('No data'))
 
-    return promise;
+      self._subscriptionId = result.data.subscriptionId
+      self._changeHandler = function (err, change) {
+        if (err) return callback(err)
+        callback(null, bson.deserialize(Buffer.from(change)))
+      }
+
+      self._lab.socket.on('change' + self._subscriptionId, self._changeHandler)
+      resolve(result.data)
+    })
+  })
+
+  return promise
 }
+
+/**
+ * Unsubscribe query compounds.
+ *
+ * ####Example
+ *
+ *     query.unsubscribe()
+ *     query.unsubscribe(callback)
+ *     query.unsubscribe().then(...)
+ *
+ * @param {Object} [criteria] mongodb selector
+ * @param {Function} [callback]
+ * @return {Promise<UnsubscribeResult>} return a promise resolved with UnsubscriptionResult
+ * @api public
+ */
 
 Beaker.prototype.unsubscribe = function (callback) {
-    if (typeof this._subscriptionId === 'undefined') throw new Error('This beaker does not have a subscription');
+  if (typeof this._subscriptionId === 'undefined') throw new Error('This beaker does not have a subscription')
 
-    if (!callback) return this;
+  this.op = null
 
-    this.op = 'unsubscribe';
+  var request = {
+    beakerId: this.beakerId,
+    subscriptionId: this._subscriptionId
+  }
 
-    var request = {
-        beakerId: this.beakerId,
-        subscriptionId: this._subscriptionId
-    };
+  var self = this
+  self._lab.socket.removeListener('change' + self._subscriptionId, self._changeHandler)
 
-    var self = this;
-    self._lab.socket.removeListener('change' + self._subscriptionId, self._changeHandler);
-    self._subscriptionId = undefined;
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('unsubscribe', request, function (err, result) {
+      if (err) return reject(err)
+      self._subscriptionId = undefined
+      resolve(result)
+    })
+  })
 
-    var promise = new Promise(function (resolve, reject) {
-        self._lab.socket.emit('unsubscribe', request, function (result) {
-            if (result.error) throw reject(result.error);
-            resolve(result.data);
-        });
-    });
-
-    return this;
+  if (callback) {
+    promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
 }
 
-module.exports = Beaker;
+module.exports = Beaker

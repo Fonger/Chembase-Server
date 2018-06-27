@@ -2,14 +2,19 @@
   "name": "chembaseserver",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "server": "node src/index.js",
     "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk",
     "database": "mongod --replSet mongo-repl --dbpath ~/mongodb-data --bind_ip 127.0.0.1",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "linter": "eslint 'src/**/*.js' 'sdk/**/*.js'",
+    "test": "npm run linter",
+    "commit": "npx git-cz"
   },
-  "author": "",
+  "author": {
+    "name": "Fonger",
+    "url": "https://github.com/Fonger"
+  },
   "license": "ISC",
   "dependencies": {
     "balanced-match": "^1.0.0",
@@ -29,5 +34,21 @@
     "socket.io": "^2.1.1",
     "socket.io-redis": "^5.2.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "commitizen": "^2.10.1",
+    "cz-conventional-changelog": "^2.1.0",
+    "eslint": "^5.0.1",
+    "eslint-config-prettier": "^2.9.0",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-import": "^2.13.0",
+    "eslint-plugin-node": "^6.0.1",
+    "eslint-plugin-promise": "^3.8.0",
+    "eslint-plugin-standard": "^3.1.0",
+    "pre-commit": "^1.2.2"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
 }
