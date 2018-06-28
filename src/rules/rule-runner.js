@@ -56,9 +56,11 @@ class RuleRunner {
 
       case 'CallExpression':
         let caller, fn, assign
-        if (states.isCompound) throw new Error('Compound data does not have any functions!')
         if (node.callee.type === 'MemberExpression') {
           assign = await this.executeMember(node.callee, states, context, query)
+          if (assign instanceof CompoundCondition) {
+            throw new Error('Compound data does not have any functions!')
+          }
           caller = assign[0]
           fn = assign[1]
         } else {
@@ -117,8 +119,12 @@ class RuleRunner {
 
     if (node.object.name === 'compound' && node.object.type === 'Identifier') {
       states.isCompound = true
+      console.log(node.object)
+      console.log(node.property)
       states.compound = new CompoundCondition(name)
     } else if (states.isCompound) {
+      console.log(node.object)
+      console.log(node.property)
       states.compound.appendSubField(name)
     }
 
