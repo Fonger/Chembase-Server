@@ -1,63 +1,7 @@
-const parseAST = require('jsep')
-const deepEqual = require('fast-deep-equal')
+const { PotentialMatch, CompoundCondition } = require('./types')
+const deepEqual = require('bson-fast-deep-equal')
 
-/* TODO: support compare BSON.Long */
-/* TODO: support compare BSON.ObjectId */
-
-parseAST.removeBinaryOp('|')
-parseAST.removeBinaryOp('&')
-parseAST.removeBinaryOp('^')
-parseAST.removeBinaryOp('===')
-parseAST.removeBinaryOp('!==')
-
-let mCounter = 0
-let isCompound = false
-let compound
-
-class PotentialMatch {
-  constructor (bool) {
-    this.potential = bool
-  }
-  valueOf () {
-    return this.potential
-  }
-}
-
-class CompoundCondition {
-  constructor (baseField, query) {
-    this.path = baseField
-    this.query = query
-  }
-  appendSubField (field) {
-    this.path += '.' + field
-  }
-  valueOf () {
-    if (this.query) {
-      throw new Error('Cannot use this operator with compound data in Query Condition')
-    }
-  }
-  equals (value) {
-    return (value instanceof CompoundCondition) && this.path === value.path
-  }
-}
-
-const binops = {
-  '||': function (a, b, query) {
-    if (query) {
-      let result = a.valueOf() || b.valueOf()
-      if (a instanceof PotentialMatch || b instanceof PotentialMatch) { return new PotentialMatch(result) }
-      return result
-    }
-    return a || b
-  },
-  '&&': function (a, b, query) {
-    if (query) {
-      let result = a.valueOf() && b.valueOf()
-      if (a instanceof PotentialMatch || b instanceof PotentialMatch) { return new PotentialMatch(result) }
-      return result
-    }
-    return a && b
-  },
+const binaryOps = {
   '|': function (a, b, query) { throw new Error('Invalid operator |') },
   '^': function (a, b, query) { throw new Error('Invalid operator ^') },
   '&': function (a, b, query) { throw new Error('Invalid operator &') },
@@ -274,135 +218,18 @@ const binops = {
   '%': function (a, b, query) { return a % b }
 }
 
-const unops = {
-  '-': function (a, query) {
-    if (query && (a instanceof PotentialMatch || a instanceof CompoundCondition)) { throw new Error('Cannot use with - operator') }
-    return -a
-  },
-  '+': function (a, query) {
-    if (query && (a instanceof PotentialMatch || a instanceof CompoundCondition)) { throw new Error('Cannot use with + operator') }
-    return +a
-  },
-  '~': function (a, query) {
-    if (query && (a instanceof PotentialMatch || a instanceof CompoundCondition)) { throw new Error('Cannot use with ~ operator') }
-    return ~a
-  },
-  '!': function (a, query) {
-    if (query && (a instanceof PotentialMatch || a instanceof CompoundCondition)) { throw new Error('Cannot use with ! operator') }
-    return !a
-  }
-}
+/**
+ * execute a binary expression and return result
+ *
+ * @param {String} operator operator identifier
+ * @param {Any} a left
+ * @param {Any} b right
+ * @param {Object} [query] query condition
+ * @returns {Any} operation result
+ */
 
-async function executeArray (list, context, query) {
-  return Promise.all(list.map(v => execute(v, context, query)))
-}
-
-const forbiddenMemberNames = ['constructor', 'prototype', '__proto__', 'bind', 'call']
-async function executeMember (node, context, query) {
-  mCounter++
-
-  var object = await execute(node.object, context, query)
-  let name = node.computed ? await execute(node.property, context, query) : node.property.name
-
-  if (forbiddenMemberNames.includes(name)) {
-    throw new Error(`No member ${name} access`)
-  }
-
-  if (node.object.name === 'compound' && node.object.type === 'Identifier') {
-    isCompound = true
-    compound = new CompoundCondition(name)
-    // console.log('!!!!!!!!!!!!!!!!!!!!!!!')
-  } else if (isCompound) {
-    compound.appendSubField(name)
-    // console.log(compound.path);
-  }
-
-  if (node.property.type !== 'MemberExpression') {
-    mCounter--
-    if (mCounter === 0) {
-      // console.log('end member');
-    }
-  }
-
-  if (isCompound) {
-    if (mCounter === 0) isCompound = false
-    return compound
-  }
-  let output = [object, object[node.property.name]]
-  return output
-}
-
-async function execute (node, context, query) {
-  switch (node.type) {
-    case 'ArrayExpression':
-      return executeArray(node.elements, context, query)
-
-    case 'BinaryExpression':
-      let a = await execute(node.left, context, query)
-      let b = await execute(node.right, context, query)
-      return binops[node.operator](a, b, query)
-
-    case 'CallExpression':
-      let caller, fn, assign
-      if (isCompound) throw new Error('Compound data does not have any functions!')
-      if (node.callee.type === 'MemberExpression') {
-        assign = await executeMember(node.callee, context, query)
-        caller = assign[0]
-        fn = assign[1]
-      } else {
-        fn = await execute(node.callee, context, query)
-      }
-      if (typeof fn !== 'function') return undefined
-      return fn.apply(caller, await executeArray(node.arguments, context, query))
-
-    case 'ConditionalExpression':
-      return await execute(node.test, context, query)
-        ? execute(node.consequent, context, query)
-        : execute(node.alternate, context, query)
-
-    case 'Identifier':
-      return context[node.name]
-
-    case 'Literal':
-      return node.value
-
-    case 'LogicalExpression':
-      return binops[node.operator](await execute(node.left, context, query), await execute(node.right, context, query), query)
-
-    case 'MemberExpression':
-      let result = await executeMember(node, context, query)
-      if (result instanceof CompoundCondition) return result
-      return result[1]
-
-    case 'ThisExpression':
-      return context
-
-    case 'UnaryExpression':
-      return unops[node.operator](await execute(node.argument, context, query), query)
-
-    default:
-      return undefined
-  }
-}
-
-module.exports = {
-  parse: parseAST,
-  runQueryACL: (ast, context, query) => {
-    return execute(ast, context, query).then((result) => {
-      if (result instanceof PotentialMatch) return result.valueOf()
-      return result
-    })
-  },
-  runGetACL: (ast, context, compound) => {
-    return execute(ast, context).then((result) => {
-      if (result instanceof PotentialMatch) return result.valueOf()
-      return result
-    })
-  },
-  runWriteACL: (ast, context, compound) => {
-    return execute(ast, context).then((result) => {
-      if (result instanceof PotentialMatch) return result.valueOf()
-      return result
-    })
-  }
+module.exports = function (operator, a, b, query) {
+  const fn = binaryOps[operator]
+  if (!fn) throw new Error(`Unknown operator ${operator}`)
+  return fn(a, b, query)
 }
