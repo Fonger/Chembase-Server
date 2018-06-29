@@ -18,11 +18,6 @@
                 var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
                 
                 let beaker = lab.beaker('beaker1');
-
-
-                let qcompound = await beaker.get("5b238e5a02fc62a0327aabcc");
-                
-                console.log(qcompound.data())
                 
                 let compounds = await beaker.find();
 
@@ -30,19 +25,16 @@
                     console.log(compound.data());
                 });
                 
-                let compound;
-                compound = await beaker.get("5b238e5a02fc62a0327aabcc");
-                console.log(compound.data());
-                compound = await beaker.create({ testString: 'Hello', testNumber: 123, testDecimal: 123.45, testDate: new Date() });
-                console.log(compound.data())
                 
-
                 let sub = await beaker.subscribe(function (err, change) {
                     if (err) console.error(err)
                     else console.log(change);
                 })
-                console.log(sub);
-
+                console.log(sub)
+                let compound;
+                compound = await beaker.create({ testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
+                console.log(compound.data())
+                
                 await sleep(1000);
                 let result = await compound.update({ ggg: 5 });
                 console.log(result);
@@ -53,8 +45,13 @@
                 result = await compound.update({ ggg: 7 });
                 console.log(result);
 
-                compound = await beaker.get("5b238e5a02fc62a0327aabcc");
+                compound = await beaker.get(compound.data()._id.toString());
                 console.log(compound);
+
+                result = await beaker.delete(compound.data()._id.toString())
+                console.log(result)
+
+                await sleep(2000)
 
                 let unsub = await beaker.unsubscribe()
                 console.log(unsub);

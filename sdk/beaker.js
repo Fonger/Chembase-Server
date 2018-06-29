@@ -161,6 +161,49 @@ Beaker.prototype.get = function (id, callback) {
 }
 
 /**
+ * Delete a compound with given id.
+ *
+ * Passing a `callback` executes the query.
+ *
+ * ####Example
+ *
+ *     query.delete('myid')
+ *     query.delete('myid', callback)
+ *
+ * @param {String} id compound id
+ * @param {Function} [callback]
+ * @return {Promise<Compound>} compound
+ * @api public
+ */
+
+Beaker.prototype.delete = function (id, callback) {
+  this.op = null
+
+  var request = {
+    beakerId: this.beakerId,
+    _id: id
+  }
+
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('delete', request, function (err, result) {
+      if (err) return reject(err)
+      if (!result.data) return callback(new Error('This compound no longer exist'))
+      resolve(result.data)
+    })
+  })
+
+  if (callback) {
+    promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
+}
+
+/**
  * Executes the query returning a `Promise` which will be
  * resolved with either the molecular(s) or rejected with the error.
  *

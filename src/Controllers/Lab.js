@@ -73,16 +73,19 @@ class Lab {
     socket.on('find', this.find.bind(this, socket))
     socket.on('get', this.get.bind(this, socket))
     socket.on('update', this.update.bind(this, socket))
+    socket.on('delete', this.delete.bind(this, socket))
     socket.on('subscribe', this.subscribe.bind(this, socket))
     socket.on('unsubscribe', this.unsubscribe.bind(this, socket))
     socket.on('disconnect', this.onDisconnect.bind(this, socket))
   }
   onDisconnect (socket, reason) {
     console.log('on disconnect', socket)
-    for (let subscriptionId of socket.listeningChangeStreamMap.keys()) {
-      let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
-      if (changeStream && changeStream.callbackHandlers) {
-        changeStream.callbackHandlers.delete(subscriptionId)
+    if (socket.listeningChangeStreamMap) {
+      for (let subscriptionId of socket.listeningChangeStreamMap.keys()) {
+        let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
+        if (changeStream && changeStream.callbackHandlers) {
+          changeStream.callbackHandlers.delete(subscriptionId)
+        }
       }
     }
   }
@@ -212,7 +215,31 @@ class Lab {
         upsert: false
       })
 
-      console.error(response)
+      if (response.result.n === 0) {
+        throw new Error('Compound does not exist or have write conflict')
+      }
+      cb(null, {
+        data: response.result
+      })
+    } catch (err) {
+      cb(err)
+    }
+  }
+  async delete (socket, request, cb) {
+    try {
+      this.checkRequest(request)
+      let collection = this.database.collection(request.beakerId)
+      let queryById = { _id: ObjectID.createFromHexString(request._id) }
+      let compound = await collection.findOne(queryById)
+      if (!compound) throw new Error('Compound does not exist')
+
+      /* TODO: rule validation */
+
+      if (typeof compound.__version === 'number') {
+        queryById.__version = compound.__version
+      }
+
+      let response = await collection.deleteOne(queryById)
       if (response.result.n === 0) {
         throw new Error('Compound does not exist or have write conflict')
       }
@@ -231,7 +258,6 @@ class Lab {
         query.beakerId,
         query.condition
       )
-
       if (!socket.listeningChangeStreamMap) {
         socket.listeningChangeStreamMap = new Map()
       }
