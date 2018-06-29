@@ -79,15 +79,12 @@ class Lab {
   }
   onDisconnect (socket, reason) {
     console.log('on disconnect', socket)
-    if (socket.changeStreams && socket.notifyHandlers) {
-      let changeStream = socket.changeStreams.get(0)
-      let handler = socket.notifyHandlers.get(0)
-      if (changeStream && handler) {
-        changeStream.removeListener('change', handler)
-        console.log('remove listener')
+    for (let subscriptionId of socket.listeningChangeStreamMap.keys()) {
+      let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
+      if (changeStream && changeStream.callbackHandlers) {
+        changeStream.callbackHandlers.delete(subscriptionId)
       }
     }
-    delete socket.notifyHandlers
   }
   register () { }
   async login (socket, data, cb) {
