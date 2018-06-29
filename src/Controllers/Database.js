@@ -1,5 +1,5 @@
 const MongoClient = require('mongodb').MongoClient
-const url = 'mongodb://localhost:27017/?replicaSet=mongo-repl'
+const url = 'mongodb://localhost:27017/?replicaSet=chembase-rs0'
 const mainDBName = 'main'
 const options = { poolSize: 1000 }
 
