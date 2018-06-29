@@ -26,11 +26,12 @@
                 });
                 
                 
-                let sub = await beaker.subscribe(function (err, change) {
+                let sub = await beaker.find().where('ggg').lt(6).subscribe(function (err, change) {
                     if (err) console.error(err)
                     else console.log(change);
                 })
                 console.log(sub)
+
                 let compound;
                 compound = await beaker.create({ testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
                 console.log(compound.data())
@@ -43,6 +44,9 @@
                 console.log(result);
                 await sleep(1000);
                 result = await compound.update({ ggg: 7 });
+                console.log(result);
+                await sleep(1000);
+                result = await compound.update({ ggg: 4 });
                 console.log(result);
 
                 compound = await beaker.get(compound.data()._id.toString());

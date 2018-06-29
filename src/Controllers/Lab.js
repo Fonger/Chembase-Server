@@ -309,9 +309,12 @@ class Lab {
     let changeStream = this.changeStreams.get(key)
 
     if (!changeStream) {
-      const pipeline = { $match: condition }
+      let lookupCondition = Object.assign(...Object.entries(condition)
+        .map(([k, v]) => ({['fullDocument.' + k]: v})))
+
+      const pipeline = [{ $match: lookupCondition }]
       const options = {
-        updateLookup: 'updateLookup'
+        fullDocument: 'updateLookup'
       }
 
       changeStream = this.database
