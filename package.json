@@ -9,7 +9,7 @@
     "database": "mongod --replSet chembase-rs0 --dbpath ~/chembase-data --bind_ip 127.0.0.1",
     "linter": "eslint 'src/**/*.js' 'sdk/**/*.js'",
     "test": "npm run linter",
-    "commit": "npx git-cz"
+    "commit": "git-cz"
   },
   "author": {
     "name": "Fonger",

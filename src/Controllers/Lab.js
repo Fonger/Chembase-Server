@@ -104,6 +104,7 @@ class Lab {
         }
       }
     }
+    delete this.users[socket.id]
   }
   async register (socket, data, cb) {
     console.log('register!')
@@ -170,7 +171,7 @@ class Lab {
     }
   }
   logout (socket) {
-    delete socket.user
+    delete this.users[socket.id]
   }
   checkRequest (request) {
     if (

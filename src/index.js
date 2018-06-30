@@ -27,6 +27,7 @@ let labMap = new Map()
 async function booting () {
   console.log('Booting Chembase Server ...')
   const mongoClient = await Database.init()
+
   const Developer = Database.MainDB.collection('developers')
   const developers = await Developer.find({}).toArray()
   console.log(mongoClient)
