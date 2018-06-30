@@ -1,4 +1,4 @@
-/* global io */
+/* global io Promise */
 if (typeof io === 'undefined') throw new Error('socket.io is required to be loaded before chembase sdk')
 var Beaker = require('./beaker.js')
 
@@ -23,19 +23,42 @@ var Lab = function (options) {
 
 Lab.prototype.login = function (data, callback) {
   console.log('login start')
-  this.socket.emit('login', data, function (err, result) {
-    if (err) return callback(err)
-    callback(null, result)
-    console.log('login result', result)
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.socket.emit('login', data, function (err, result) {
+      if (err) return reject(err)
+      resolve(result)
+      console.log('login result', result)
+    })
   })
+  if (callback) {
+    return promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
 }
 
 Lab.prototype.register = function (data, callback) {
-  this.socket.emit('register', data, function (err, result) {
-    if (err) return callback(err)
-    callback(null, result)
-    console.log('register result', result)
+  console.log('register start')
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.socket.emit('register', data, function (err, result) {
+      if (err) return reject(err)
+      resolve(result)
+      console.log('register result', result)
+    })
   })
+  if (callback) {
+    return promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
 }
 
 Lab.prototype.beaker = function (id) {

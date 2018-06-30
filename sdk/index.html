@@ -16,7 +16,21 @@
         async function start() {
             try {
                 var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
-                
+                let random = ~~(Math.random() * 1000000)
+                let register = await lab.register({
+                    method: 'email',
+                    email: 'hello' + random + '@world.org',
+                    password: '1234'
+                })
+                console.log(register)
+                let user = await lab.login({
+                    method: 'email',
+                    email: 'hello' + random + '@world.org',
+                    password: '1234'
+                })
+                console.log(user)
+
+
                 let beaker = lab.beaker('beaker1');
                 
                 let compounds = await beaker.find().where('ggg').lt(6);
@@ -64,11 +78,6 @@
                 //await sleep(4000);
                 //lab.socket.disconnect();
 
-                lab.login({
-                    method: 'email'
-                }, function (result) {
-                    console.log(result);
-                });
             } catch (err) {
                 console.error(err);
             }

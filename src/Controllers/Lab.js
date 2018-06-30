@@ -4,6 +4,7 @@ const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
 
+const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
 
 class Lab {
@@ -14,6 +15,9 @@ class Lab {
     this.authMethods = rawLab.auth
     this.users = {}
     this.userCollection = this.database.collection('_users')
+    this.userCollection.createIndex({ email: 1 }, { sparse: true, unique: true })
+      .then(console.log)
+      .catch(console.error)
     this.io = socketIO.of(`/${rawLab.id}`)
     this.io.use(this.ioMiddleware.bind(this))
     this.io.on('connection', this.onConnection.bind(this))
@@ -27,11 +31,11 @@ class Lab {
       {
         id: 'beaker1',
         rules: {
-          list: 'true',
-          get: 'true',
-          update: 'true',
-          create: 'true',
-          delete: 'true'
+          list: 'request.user != null',
+          get: 'request.user != null',
+          update: 'request.user != null',
+          create: 'request.user != null',
+          delete: 'request.user != null'
         }
       },
       {
@@ -49,7 +53,6 @@ class Lab {
     this.rawBeakers.forEach(beaker => {
       this.beakers[beaker.id] = beaker
     })
-    console.log(this.beakers)
     this.beakerIdlist = Object.keys(this.beakers)
     this.changeStreams = new Map()
   }
@@ -102,7 +105,36 @@ class Lab {
       }
     }
   }
-  register () { }
+  async register (socket, data, cb) {
+    console.log('register!')
+    try {
+      switch (data.method) {
+        case 'email':
+          let salt = await bcrypt.genSalt(SALT_WORK_FACTOR)
+          let hashedPassword = await bcrypt.hash(data.password, salt)
+
+          let response = await this.userCollection.insertOne({
+            email: data.email,
+            password: hashedPassword
+          })
+
+          if (response.result.n === 0) {
+            throw new Error('user already exists')
+          }
+
+          /* TODO: email verification */
+          let user = response.ops[0]
+          this.users[socket.id] = user
+          cb(null, user)
+          break
+        default:
+          throw new Error('authentication method is under development')
+      }
+    } catch (err) {
+      if (err.code === 11000) return cb(new Error('user already exists'))
+      cb(err)
+    }
+  }
   async login (socket, data, cb) {
     console.log('login!')
     try {
@@ -115,11 +147,11 @@ class Lab {
           user = await this.userCollection.findOne({ email: data.email })
           if (!user) throw new Error('User not found')
 
-          let isMatch = await bcrypt.compare(user.password, data.bassword)
+          let isMatch = await bcrypt.compare(data.password, user.password)
           if (!isMatch) throw new Error('Incorrect password')
 
           socket.user = user
-          this.users[socket.id] = user._id
+          this.users[socket.id] = user
           cb(null, user)
           break
         case 'ldap':
@@ -127,7 +159,7 @@ class Lab {
           if (!user) throw new Error('ldap user not found')
 
           socket.user = user
-          this.users[socket.id] = user._id
+          this.users[socket.id] = user
           cb(null, user)
           break
         default:
@@ -157,7 +189,7 @@ class Lab {
       let compound = BSON.deserialize(Buffer.from(request.data))
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
-      let passACL = await ruleRunner.run({ compound })
+      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -184,7 +216,7 @@ class Lab {
       query.conditions = parsedConditions
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
-      let passACL = await ruleRunner.run({}, query)
+      let passACL = await ruleRunner.run({ request: { user: this.users[socket.id] } }, query)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -211,7 +243,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.get)
-      let passACL = await ruleRunner.run({ compound })
+      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -233,7 +265,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.update)
-      let passACL = await ruleRunner.run({ compound })
+      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -275,7 +307,7 @@ class Lab {
 
       /* TODO: rule validation */
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.delete)
-      let passACL = await ruleRunner.run({ compound })
+      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -296,7 +328,7 @@ class Lab {
       TODO: notify delete
       let matchSubscribeQuery = await collection.aggregate([
         { $limit: 1 },
-        { $project: { '#nonexist': 0 } },
+        { $project: { '###nonexist': 0 } },
         { $addFields: compound },
         { $match: condition },
         { $count: 'n' }

@@ -27,6 +27,9 @@ const binaryOps = {
         return a.valueOf() === b.valueOf()
       }
     }
+    if ((a === null && b === undefined) || (b === null && a === undefined)) {
+      return true
+    }
     return deepEqual(a, b)
   },
   '!=': function (a, b, query) {
@@ -53,6 +56,9 @@ const binaryOps = {
       if (a instanceof PotentialMatch || b instanceof PotentialMatch) {
         return a.valueOf() !== b.valueOf()
       }
+    }
+    if ((a === null && b === undefined) || (b === null && a === undefined)) {
+      return false
     }
     return !deepEqual(a, b)
   },
