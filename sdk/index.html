@@ -19,7 +19,7 @@
                 
                 let beaker = lab.beaker('beaker1');
                 
-                let compounds = await beaker.find();
+                let compounds = await beaker.find().where('ggg').lt(6);
 
                 compounds.forEach(compound => {
                     console.log(compound.data());

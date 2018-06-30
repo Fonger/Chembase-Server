@@ -2,6 +2,7 @@ const Database = require('./Database')
 const bcrypt = require('bcrypt-promise')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
+const RuleRunner = require('../rules/rule-runner')
 
 require('../utils/errorjson')
 
@@ -9,13 +10,6 @@ class Lab {
   constructor (rawLab, rawDeveloper, socketIO) {
     console.log(`    Lab id: ${rawLab.id} key: ${rawLab.apiKey}`)
     this.database = Database.MongoClient.db(rawLab.id)
-    let rules = {}
-    try {
-      rules = JSON.parse(rawLab.rule)
-      console.log('        Rule is valid')
-    } catch (e) {
-      console.error(`        Rule is invalid`)
-    }
     this.apiKey = rawLab.apiKey
     this.authMethods = rawLab.auth
     this.users = {}
@@ -27,17 +21,36 @@ class Lab {
       'http://localhost:8080',
       'http://localhost:9966'
     ]
-    this.beakers = rawLab.beakers.map(beakerId => {
-      console.log(`        beaker id: ${beakerId}`)
-
-      // let collection = this.database.collection(beakerId)
-
-      return {
-        id: beakerId,
-        rule: rules[beakerId] || {}
+    // this.beakers = rawLab.beakers
+    // dummy data
+    this.rawBeakers = [
+      {
+        id: 'beaker1',
+        rules: {
+          list: 'true',
+          get: 'true',
+          update: 'true',
+          create: 'true',
+          delete: 'true'
+        }
+      },
+      {
+        id: 'beaker2',
+        rules: {
+          list: 'true',
+          get: 'true',
+          update: 'true',
+          create: 'true',
+          delete: 'true'
+        }
       }
+    ]
+    this.beakers = {}
+    this.rawBeakers.forEach(beaker => {
+      this.beakers[beaker.id] = beaker
     })
-    this.beakerIdlist = this.beakers.map(beaker => beaker.id)
+    console.log(this.beakers)
+    this.beakerIdlist = Object.keys(this.beakers)
     this.changeStreams = new Map()
   }
   async ioMiddleware (socket, next) {
@@ -142,6 +155,13 @@ class Lab {
       /* TODO: rule validation */
       let collection = this.database.collection(request.beakerId)
       let compound = BSON.deserialize(Buffer.from(request.data))
+
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
+      let passACL = await ruleRunner.run({ compound })
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
+
       let response = await collection.insertOne(
         compound
       ) /* insertOne has no raw option */
@@ -159,11 +179,19 @@ class Lab {
     try {
       this.checkRequest(query)
       /* TODO: rule validation */
+
+      const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
+      query.conditions = parsedConditions
+
+      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
+      let passACL = await ruleRunner.run({}, query)
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
+
       let collection = this.database.collection(query.beakerId)
       query.options.raw = true
-      let result = await collection
-        .find(BSON.deserialize(Buffer.from(query.condition)), query.options)
-        .toArray()
+      let result = await collection.find(parsedConditions, query.options).toArray()
 
       cb(null, {
         data: result
@@ -182,6 +210,12 @@ class Lab {
       )
       if (!compound) throw new Error('Compound does not exist')
 
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.get)
+      let passACL = await ruleRunner.run({ compound })
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
+
       /* TODO: rule validation */
       cb(null, {
         data: compound
@@ -197,6 +231,12 @@ class Lab {
       let queryById = { _id: ObjectID.createFromHexString(request._id) }
       let compound = await collection.findOne(queryById)
       if (!compound) throw new Error('Compound does not exist')
+
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.update)
+      let passACL = await ruleRunner.run({ compound })
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
 
       /* TODO: rule validation & replace option */
 
@@ -219,7 +259,7 @@ class Lab {
         throw new Error('Compound does not exist or have write conflict')
       }
       cb(null, {
-        data: response.result
+        data: { ok: true }
       })
     } catch (err) {
       cb(err)
@@ -234,6 +274,11 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       /* TODO: rule validation */
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.delete)
+      let passACL = await ruleRunner.run({ compound })
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
 
       if (typeof compound.__version === 'number') {
         queryById.__version = compound.__version
@@ -244,8 +289,22 @@ class Lab {
         throw new Error('Compound does not exist or have write conflict')
       }
       cb(null, {
-        data: response.result
+        data: { ok: true }
       })
+
+      /*
+      TODO: notify delete
+      let matchSubscribeQuery = await collection.aggregate([
+        { $limit: 1 },
+        { $project: { '#nonexist': 0 } },
+        { $addFields: compound },
+        { $match: condition },
+        { $count: 'n' }
+      ])
+      if (matchSubscribeQuery.n === 1) {
+        emit delete now
+      }
+      */
     } catch (err) {
       cb(err)
     }
@@ -256,7 +315,7 @@ class Lab {
       this.checkRequest(query)
       const changeStream = this.getChangeStream(
         query.beakerId,
-        query.condition
+        query.conditions
       )
       if (!socket.listeningChangeStreamMap) {
         socket.listeningChangeStreamMap = new Map()
@@ -312,7 +371,16 @@ class Lab {
       let lookupCondition = Object.assign(...Object.entries(condition)
         .map(([k, v]) => ({['fullDocument.' + k]: v})))
 
-      const pipeline = [{ $match: lookupCondition }]
+      const pipeline = [
+        { $match: lookupCondition },
+        {
+          $project: {
+            documentKey: 0,
+            ns: 0,
+            clusterTime: 0
+          }
+        }
+      ]
       const options = {
         fullDocument: 'updateLookup'
       }
@@ -332,6 +400,8 @@ class Lab {
           let fields = Object.keys(changeData.updateDescription.updatedFields)
           if (fields.length === 1 && fields[0] === '__version') return
         }
+
+        delete changeData._id
         let changeDataRaw = BSON.serialize(changeData)
 
         for (let subscriptionId of changeStream.callbackHandlers.keys()) {

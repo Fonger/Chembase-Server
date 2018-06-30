@@ -100,12 +100,12 @@ Beaker.prototype.find = function (callback) {
 
   var query = {
     beakerId: this.beakerId,
-    condition: bson.serialize(this._conditions),
+    conditions: bson.serialize(this._conditions),
     options: this.options
   }
   var self = this
   this._lab.socket.emit('find', query, function (err, result) {
-    if (err) return callback(result.error)
+    if (err) return callback(err)
     if (!result.data) return callback(new Error('No data'))
 
     var compounds = result.data.map(function (rawCompound) {
@@ -246,7 +246,7 @@ Beaker.prototype.subscribe = function (callback) {
 
   var query = {
     beakerId: this.beakerId,
-    condition: this._conditions
+    conditions: this._conditions
   }
 
   var self = this

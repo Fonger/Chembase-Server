@@ -117,15 +117,17 @@ class RuleRunner {
       throw new Error(`No member ${name} access`)
     }
 
-    if (node.object.name === 'compound' && node.object.type === 'Identifier') {
-      states.isCompound = true
-      console.log(node.object)
-      console.log(node.property)
-      states.compound = new CompoundCondition(name)
-    } else if (states.isCompound) {
-      console.log(node.object)
-      console.log(node.property)
-      states.compound.appendSubField(name)
+    if (query) {
+      if (node.object.name === 'compound' && node.object.type === 'Identifier') {
+        states.isCompound = true
+        console.log(node.object)
+        console.log(node.property)
+        states.compound = new CompoundCondition(name)
+      } else if (states.isCompound) {
+        console.log(node.object)
+        console.log(node.property)
+        states.compound.appendSubField(name)
+      }
     }
 
     if (node.property.type !== 'MemberExpression') {
