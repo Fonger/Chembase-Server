@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt-promise')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
+const DotNotation = require('../utils/dot-notation')
 
 const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
@@ -14,6 +15,7 @@ class Lab {
     this.apiKey = rawLab.apiKey
     this.authMethods = rawLab.auth
     this.users = {}
+
     this.userCollection = this.database.collection('_users')
     this.userCollection.createIndex({ email: 1 }, { sparse: true, unique: true })
       .then(console.log)
@@ -190,7 +192,7 @@ class Lab {
       let compound = BSON.deserialize(Buffer.from(request.data))
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
-      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
+      let passACL = await ruleRunner.run({ request: { compound, user: this.users[socket.id] } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -257,6 +259,7 @@ class Lab {
       cb(err)
     }
   }
+
   async update (socket, request, cb) {
     try {
       this.checkRequest(request)
@@ -265,8 +268,16 @@ class Lab {
       let compound = await collection.findOne(queryById)
       if (!compound) throw new Error('Compound does not exist')
 
+      let newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
+      let context = {
+        compound,
+        request: {
+          user: this.users[socket.id],
+          compound: { ...compound, ...DotNotation.toObject(newSetData) }
+        }
+      }
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.update)
-      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
+      let passACL = await ruleRunner.run(context)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -274,7 +285,7 @@ class Lab {
       /* TODO: rule validation & replace option */
 
       let update = {
-        $set: BSON.deserialize(Buffer.from(request.data)) || {}
+        $set: newSetData
       }
 
       if (typeof compound.__version === 'number') {
@@ -291,6 +302,7 @@ class Lab {
       if (response.result.n === 0) {
         throw new Error('Compound does not exist or have write conflict')
       }
+
       cb(null, {
         data: { ok: true }
       })
