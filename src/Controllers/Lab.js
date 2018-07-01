@@ -1,4 +1,5 @@
 const Database = require('./Database')
+const Redis = require('ioredis')
 const bcrypt = require('bcrypt-promise')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
@@ -8,13 +9,20 @@ const CompoundUtils = require('../utils/compound-utils')
 const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
 
+const redis = new Redis({
+  port: 6379,
+  host: '127.0.0.1',
+  family: 4,
+  // password: 'auth',
+  db: 0
+})
+
 class Lab {
   constructor (rawLab, rawDeveloper, socketIO) {
     console.log(`    Lab id: ${rawLab.id} key: ${rawLab.apiKey}`)
     this.database = Database.MongoClient.db(rawLab.id)
     this.apiKey = rawLab.apiKey
     this.authMethods = rawLab.auth
-    this.users = {}
 
     this.userCollection = this.database.collection('_users')
     this.userCollection.createIndex({ email: 1 }, { sparse: true, unique: true })
@@ -60,6 +68,7 @@ class Lab {
   }
   async ioMiddleware (socket, next) {
     console.log('middleware!!')
+    console.log(socket.handshake.query)
     if (socket.handshake.query.apiKey !== this.apiKey) {
       return next(new Error('API Key is not matched'))
     }
@@ -68,16 +77,21 @@ class Lab {
       return next(new Error('lab origin not allowed'))
     }
 
-    let sessionId = socket.handshake.query.sessionId
-    if (sessionId) {
-      /* TODO: find session table instead */
+    let oldSocketId = socket.handshake.query.oldSocketId
+    if (oldSocketId) {
+      console.log(oldSocketId + ' ===> ' + socket.id)
       try {
-        socket.user = await this.userCollection.findOne({ _id: sessionId })
-        if (socket.user.expiredAt && socket.user.expiredAt < Date.now()) {
-          socket.user = undefined
+        let userId = await redis.hget(oldSocketId, 'userId')
+        console.log('userIDIDIDID', userId)
+        if (userId) {
+          let user = await this.userCollection.findOne({ _id: ObjectID.createFromHexString(userId) })
+          if (!user) return next(new Error('user not found'))
+          socket.user = user
+          await redis.rename(oldSocketId, socket.id)
         }
       } catch (err) {
-        return next(err)
+        console.error('ERRRRRRRRRRR', err)
+        // ignore the error
       }
     }
     next()
@@ -86,6 +100,10 @@ class Lab {
     console.log('onConnection! ' + socket.id)
     socket.uniqueCounter = 0
     socket.txnSessions = new Map()
+    redis.hmset(socket.id, {
+      uniqueCounter: 0,
+      socketId: socket.id
+    })
     socket.on('register', this.register.bind(this, socket))
     socket.on('login', this.login.bind(this, socket))
     socket.on('logout', this.logout.bind(this, socket))
@@ -102,7 +120,16 @@ class Lab {
     socket.on('disconnect', this.onDisconnect.bind(this, socket))
   }
   onDisconnect (socket, reason) {
-    console.log('on disconnect', socket)
+    console.log('on disconnect', reason)
+    /*
+      reason may be one of the followings
+      'client namespace disconnect'
+      'server namespace disconnect'
+      'transport error'
+      'ping timeout'
+      'transport close'
+      'io server disconnect'
+    */
     for (let txnSession of socket.txnSessions.values()) {
       txnSession.endSession()
     }
@@ -114,7 +141,8 @@ class Lab {
         }
       }
     }
-    delete this.users[socket.id]
+    delete socket.user
+    redis.expire(socket.id, 30) // expire session if offline over 30 seconds
   }
   async register (socket, data, cb) {
     console.log('register!')
@@ -135,8 +163,9 @@ class Lab {
 
           /* TODO: email verification */
           let user = response.ops[0]
-          this.users[socket.id] = user
-          cb(null, user)
+          socket.user = user
+          const { password, ...sUser } = user
+          cb(null, sUser)
           break
         default:
           throw new Error('authentication method is under development')
@@ -162,7 +191,7 @@ class Lab {
           if (!isMatch) throw new Error('Incorrect password')
 
           socket.user = user
-          this.users[socket.id] = user
+          redis.hset(socket.id, 'userId', user._id)
           cb(null, user)
           break
         case 'ldap':
@@ -170,7 +199,7 @@ class Lab {
           if (!user) throw new Error('ldap user not found')
 
           socket.user = user
-          this.users[socket.id] = user
+          redis.hset(socket.id, 'userId', user._id)
           cb(null, user)
           break
         default:
@@ -181,7 +210,10 @@ class Lab {
     }
   }
   logout (socket, data, cb) {
-    delete this.users[socket.id]
+    socket.user = undefined
+    redis.hdel(socket.id, 'userId', function (err) {
+      console.error(err)
+    })
     cb()
   }
   checkRequest (request) {
@@ -202,7 +234,7 @@ class Lab {
 
       CompoundUtils.validateObject(compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
-      let passACL = await ruleRunner.run({ request: { compound, user: this.users[socket.id] } })
+      let passACL = await ruleRunner.run({ request: { compound, user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -237,7 +269,7 @@ class Lab {
       query.conditions = parsedConditions
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
-      let passACL = await ruleRunner.run({ request: { user: this.users[socket.id] } }, query)
+      let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -278,7 +310,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.get)
-      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
+      let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -312,7 +344,7 @@ class Lab {
       let context = {
         compound,
         request: {
-          user: this.users[socket.id],
+          user: socket.user,
           compound: { ...compound, ...CompoundUtils.dotNotationToObject(newSetData) }
         }
       }
@@ -368,7 +400,7 @@ class Lab {
 
       /* TODO: rule validation */
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.delete)
-      let passACL = await ruleRunner.run({ compound, request: { user: this.users[socket.id] } })
+      let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -438,6 +470,10 @@ class Lab {
     try {
       this.checkRequest(request)
       let subscriptionId = request.subscriptionId
+
+      if (!socket.listeningChangeStreamMap) {
+        throw new Error('No subscription')
+      }
       let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
       if (!changeStream) {
         throw new Error('Invalid subscription id')

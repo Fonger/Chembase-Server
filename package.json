@@ -27,6 +27,7 @@
     "chalk": "^2.4.1",
     "expr-eval": "^1.2.1",
     "express": "^4.16.3",
+    "ioredis": "^3.2.2",
     "is-plain-object": "^2.0.4",
     "isolated-vm": "^1.6.1",
     "jsep": "^0.3.4",

@@ -48,7 +48,7 @@
                 console.log(sub)
 
                 let compound;
-                compound = await beaker.create({ testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
+                compound = await beaker.create({testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
                 console.log(compound.data())
                 
                 await sleep(1000);
@@ -58,7 +58,7 @@
 
                 result = await compound.update({ ggg: 6 });
                 console.log(result);
-                await sleep(1000);
+                await sleep(7000);
                 result = await compound.update({ ggg: 7 });
                 console.log(result);
                 await sleep(1000);
@@ -87,7 +87,9 @@
 
                 await lab.logout()
                 await sleep(4000);
-                lab.socket.disconnect();
+                //lab.socket.disconnect();
+                //compound = await beaker.create({ testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
+                //console.log(compound.data())
 
             } catch (err) {
                 console.error(err);

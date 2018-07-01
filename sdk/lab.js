@@ -4,21 +4,30 @@ var Beaker = require('./beaker.js')
 
 var Lab = function (options) {
   this.sessionId = undefined
-  this.socket = io('http://localhost:8080/' + options.labId, {
+  var socket = io('http://localhost:8080/' + options.labId, {
     query: {
       apiKey: options.apiKey
     },
     transports: ['websocket'],
-    upgrade: false
+    upgrade: false,
+    reconnectionDelay: 5000
   })
-
-  this.socket.on('reconnect_attempt', function () {
-    // socket.io.opts.query.sessionId = this.sessionId;
+  this.socketId = undefined
+  var self = this
+  socket.on('connect', function () {
+    self.socketId = socket.id
+  })
+  socket.on('reconnect_attempt', function () {
+    socket.io.opts.query.oldSocketId = self.socketId
     console.log('reconnect attempt')
   })
-  this.socket.on('error', function (err) {
+  socket.on('reconnect', function () {
+    console.log('reconnect success', socket.id)
+  })
+  socket.on('error', function (err) {
     console.log(err)
   })
+  this.socket = socket
 }
 
 Lab.prototype.login = function (data, callback) {
