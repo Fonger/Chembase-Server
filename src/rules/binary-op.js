@@ -78,7 +78,7 @@ const binaryOps = {
           return new PotentialMatch(condition.$lt <= b)
         }
         if (typeof condition.$lte === 'number') {
-          return new PotentialMatch(condition.lgte < b)
+          return new PotentialMatch(condition.lte < b)
         }
         return new PotentialMatch(false)
       } else if (b instanceof CompoundCondition && typeof a === 'number') {
