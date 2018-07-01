@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt-promise')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
-const DotNotation = require('../utils/dot-notation')
+const CompoundUtils = require('../utils/compound-utils')
 
 const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
@@ -312,9 +312,11 @@ class Lab {
         compound,
         request: {
           user: this.users[socket.id],
-          compound: { ...compound, ...DotNotation.toObject(newSetData) }
+          compound: { ...compound, ...CompoundUtils.dotNotationToObject(newSetData) }
         }
       }
+
+      CompoundUtils.validateObject(context.request.compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.update)
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
