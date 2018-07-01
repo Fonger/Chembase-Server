@@ -84,6 +84,8 @@ class Lab {
   }
   onConnection (socket) {
     console.log('onConnection! ' + socket.id)
+    socket.uniqueCounter = 0
+    socket.txnSessions = new Map()
     socket.on('register', this.register.bind(this, socket))
     socket.on('login', this.login.bind(this, socket))
     socket.on('logout', this.logout.bind(this, socket))
@@ -94,10 +96,16 @@ class Lab {
     socket.on('delete', this.delete.bind(this, socket))
     socket.on('subscribe', this.subscribe.bind(this, socket))
     socket.on('unsubscribe', this.unsubscribe.bind(this, socket))
+    socket.on('txn_start', this.startTransaction.bind(this, socket))
+    socket.on('txn_commit', this.commitTransaction.bind(this, socket))
+    socket.on('txn_abort', this.abortTransaction.bind(this, socket))
     socket.on('disconnect', this.onDisconnect.bind(this, socket))
   }
   onDisconnect (socket, reason) {
     console.log('on disconnect', socket)
+    for (let txnSession of socket.txnSessions.values()) {
+      txnSession.endSession()
+    }
     if (socket.listeningChangeStreamMap) {
       for (let subscriptionId of socket.listeningChangeStreamMap.keys()) {
         let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
@@ -197,8 +205,16 @@ class Lab {
         throw new Error('Access denined')
       }
 
+      let options = {}
+      if (request.txnSessionId) {
+        let txnSession = socket.txnSessions.get(request.txnSessionId)
+        if (!txnSession) throw new Error('Invalid txnSessionId')
+        options.session = txnSession
+      }
+
       let response = await collection.insertOne(
-        compound
+        compound,
+        options
       ) /* insertOne has no raw option */
       if (response.result.n === 0) {
         throw new Error('Create compound failed. Write conflict?')
@@ -225,8 +241,15 @@ class Lab {
       }
 
       let collection = this.database.collection(query.beakerId)
-      query.options.raw = true
-      let result = await collection.find(parsedConditions, query.options).toArray()
+
+      let options = { ...query.options, raw: true }
+      if (query.txnSessionId) {
+        let txnSession = socket.txnSessions.get(query.txnSessionId)
+        if (!txnSession) throw new Error('Invalid txnSessionId')
+        options.session = txnSession
+      }
+
+      let result = await collection.find(parsedConditions, options).toArray()
 
       cb(null, {
         data: result
@@ -239,9 +262,16 @@ class Lab {
     try {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
+
+      let options = { raw: true }
+      if (request.txnSessionId) {
+        let txnSession = socket.txnSessions.get(request.txnSessionId)
+        if (!txnSession) throw new Error('Invalid txnSessionId')
+        options.session = txnSession
+      }
+
       let compound = await collection.findOne(
-        { _id: ObjectID.createFromHexString(request._id) },
-        { raw: true }
+        { _id: ObjectID.createFromHexString(request._id) }, options
       )
       if (!compound) throw new Error('Compound does not exist')
 
@@ -265,7 +295,15 @@ class Lab {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
       let queryById = { _id: ObjectID.createFromHexString(request._id) }
-      let compound = await collection.findOne(queryById)
+
+      let options = {}
+      if (request.txnSessionId) {
+        let txnSession = socket.txnSessions.get(request.txnSessionId)
+        if (!txnSession) throw new Error('Invalid txnSessionId')
+        options.session = txnSession
+      }
+
+      let compound = await collection.findOne(queryById, options)
       if (!compound) throw new Error('Compound does not exist')
 
       let newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
@@ -295,9 +333,7 @@ class Lab {
         update.$set.__version = 0
       }
 
-      let response = await collection.updateOne(queryById, update, {
-        upsert: false
-      })
+      let response = await collection.updateOne(queryById, update, options)
 
       if (response.result.n === 0) {
         throw new Error('Compound does not exist or have write conflict')
@@ -315,7 +351,15 @@ class Lab {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
       let queryById = { _id: ObjectID.createFromHexString(request._id) }
-      let compound = await collection.findOne(queryById)
+
+      let options = {}
+      if (request.txnSessionId) {
+        let txnSession = socket.txnSessions.get(request.txnSessionId)
+        if (!txnSession) throw new Error('Invalid txnSessionId')
+        options.session = txnSession
+      }
+
+      let compound = await collection.findOne(queryById, options)
       if (!compound) throw new Error('Compound does not exist')
 
       /* TODO: rule validation */
@@ -329,7 +373,7 @@ class Lab {
         queryById.__version = compound.__version
       }
 
-      let response = await collection.deleteOne(queryById)
+      let response = await collection.deleteOne(queryById, options)
       if (response.result.n === 0) {
         throw new Error('Compound does not exist or have write conflict')
       }
@@ -472,6 +516,43 @@ class Lab {
       // changeStream.setMaxListeners(1000);
     }
     return changeStream
+  }
+  startTransaction (socket, request, cb) {
+    try {
+      let txnSession = Database.MongoClient.startSession()
+      socket.txnSessions.set(++socket.uniqueCounter, txnSession)
+      txnSession.startTransaction() /* no return value, no callback */
+      cb(null, { txnSessionId: socket.uniqueCounter })
+    } catch (err) {
+      cb(err)
+    }
+  }
+  async commitTransaction (socket, request, cb) {
+    try {
+      let txnSession = socket.txnSessions.get(request.txnSessionId)
+      if (!txnSession) throw new Error('Invalid txnSessionId')
+      let result = await txnSession.commitTransaction() /* a promise if no callback function specified */
+      cb(null, { data: result })
+    } catch (err) {
+      cb(err)
+    }
+  }
+  async abortTransaction (socket, request, cb) {
+    try {
+      let txnSession = socket.txnSessions.get(request.txnSessionId)
+      if (!txnSession) throw new Error('Invalid txnSessionId')
+      let result = await txnSession.abortTransaction() /* a promise if no callback function specified */
+
+      /*
+        callback is meaningless
+        https://github.com/mongodb-js/mongodb-core/blob/d95a4d15eea9455dff3feea38784bbaed338488d/lib/sessions.js#L114
+      */
+      txnSession.endSession()
+      socket.txnSessions.delete(request.txnSessionId)
+      cb(null, { data: result })
+    } catch (err) {
+      cb(err)
+    }
   }
 }
 

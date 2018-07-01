@@ -22,6 +22,9 @@ function Beaker (lab, beakerId) {
   if (!beakerId) { throw new Error('Must specify beaker id') }
 
   this.beakerId = beakerId
+  if (typeof lab.txnSessionId !== 'undefined') {
+    this.txnSessionId = lab.txnSessionId
+  }
   this._lab = lab
   this._subscriptionId = undefined
   this._changeHandler = undefined
@@ -58,6 +61,8 @@ Beaker.prototype.create = function (data, callback) {
     beakerId: this.beakerId,
     data: bson.serialize(data)
   }
+
+  if (this.txnSessionId) request.txnSessionId = this.txnSessionId
   var promise = new Promise(function (resolve, reject) {
     self._lab.socket.emit('create', request, function (err, result) {
       if (err) return reject(err)
@@ -103,7 +108,9 @@ Beaker.prototype.find = function (callback) {
     conditions: bson.serialize(this._conditions),
     options: this.options
   }
+
   var self = this
+  if (this.txnSessionId) query.txnSessionId = this.txnSessionId
   this._lab.socket.emit('find', query, function (err, result) {
     if (err) return callback(err)
     if (!result.data) return callback(new Error('No data'))
@@ -142,6 +149,7 @@ Beaker.prototype.get = function (id, callback) {
   }
 
   var self = this
+  if (this.txnSessionId) request.txnSessionId = this.txnSessionId
   var promise = new Promise(function (resolve, reject) {
     self._lab.socket.emit('get', request, function (err, result) {
       if (err) return reject(err)
@@ -185,6 +193,7 @@ Beaker.prototype.delete = function (id, callback) {
   }
 
   var self = this
+  if (this.txnSessionId) request.txnSessionId = this.txnSessionId
   var promise = new Promise(function (resolve, reject) {
     self._lab.socket.emit('delete', request, function (err, result) {
       if (err) return reject(err)
