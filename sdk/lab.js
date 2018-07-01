@@ -41,6 +41,26 @@ Lab.prototype.login = function (data, callback) {
   return promise
 }
 
+Lab.prototype.logout = function (data, callback) {
+  console.log('logout start')
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.socket.emit('logout', data, function (err, result) {
+      if (err) return reject(err)
+      resolve(result)
+      console.log('logout result', result)
+    })
+  })
+  if (callback) {
+    return promise.then(function (result) {
+      callback(null, result)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
+}
+
 Lab.prototype.register = function (data, callback) {
   console.log('register start')
   var self = this

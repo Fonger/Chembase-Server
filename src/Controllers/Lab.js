@@ -180,8 +180,9 @@ class Lab {
       cb(err)
     }
   }
-  logout (socket) {
+  logout (socket, data, cb) {
     delete this.users[socket.id]
+    cb()
   }
   checkRequest (request) {
     if (

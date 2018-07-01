@@ -55,6 +55,7 @@
                 let result = await compound.update({ ggg: 5 });
                 console.log(result);
                 await sleep(1000);
+
                 result = await compound.update({ ggg: 6 });
                 console.log(result);
                 await sleep(1000);
@@ -70,7 +71,7 @@
                 result = await beaker.delete(compound.data()._id.toString())
                 console.log(result)
 
-                lab.synthesize(async function (lab) {
+                await lab.synthesize(async function (lab) {
                     let compound = await lab.beaker('beaker1').create({ transactionDate: new Date() })
                     throw new Error('MYERR^^')
                 }).then((result) => {
@@ -84,8 +85,9 @@
                 console.log(unsub);
                 console.log('unsub')
 
-                //await sleep(4000);
-                //lab.socket.disconnect();
+                await lab.logout()
+                await sleep(4000);
+                lab.socket.disconnect();
 
             } catch (err) {
                 console.error(err);
