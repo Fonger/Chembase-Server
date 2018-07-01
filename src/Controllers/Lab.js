@@ -200,6 +200,7 @@ class Lab {
       let collection = this.database.collection(request.beakerId)
       let compound = BSON.deserialize(Buffer.from(request.data))
 
+      CompoundUtils.validateObject(compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
       let passACL = await ruleRunner.run({ request: { compound, user: this.users[socket.id] } })
       if (!passACL) {
