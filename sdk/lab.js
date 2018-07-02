@@ -1,4 +1,5 @@
 var Beaker = require('./beaker.js')
+var utils = require('./utils')
 
 /* global Promise io */
 
@@ -10,7 +11,8 @@ var Lab = function (options) {
     },
     transports: ['websocket'],
     upgrade: false,
-    reconnectionDelay: 5000
+    reconnectionDelay: 6000,
+    reconnectionAttempts: 10
   })
   this.socketId = undefined
   var self = this
@@ -21,8 +23,26 @@ var Lab = function (options) {
     socket.io.opts.query.oldSocketId = self.socketId
     console.log('reconnect attempt')
   })
+  socket.on('reconnecting', function (attemptNumber) {
+    console.log('reconnecting...', attemptNumber)
+  })
   socket.on('reconnect', function () {
     console.log('reconnect success', socket.id)
+  })
+  socket.on('disconnect', function (reason) {
+    console.log('disconnect reason', reason)
+  })
+  socket.on('reconnect_error', function (err) {
+    console.error(err)
+  })
+  socket.on('reconnect_failed', function () {
+    console.error('reconnect failed. give up.')
+  })
+  socket.on('ping', function () {
+    console.log('ping!')
+  })
+  socket.on('pong', function (ms) {
+    console.log('pong!', ms)
   })
   socket.on('error', function (err) {
     console.log(err)
@@ -100,7 +120,7 @@ Lab.prototype.synthesize = function (txnFunc) {
     self.socket.emit('txn_start', {}, function (err, result) {
       if (err) return reject(err)
       // TODO polyfill
-      var txnLab = Object.assign(self, { txnSessionId: result.txnSessionId })
+      var txnLab = utils.assign(self, { txnSessionId: result.txnSessionId })
       txnFunc(txnLab)
         .then(function (customResult) {
           self.socket.emit('txn_commit', { txnSessionId: txnLab.txnSessionId }, function (err, result) {

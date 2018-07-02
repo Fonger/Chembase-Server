@@ -82,7 +82,6 @@ class Lab {
       console.log(oldSocketId + ' ===> ' + socket.id)
       try {
         let userId = await redis.hget(oldSocketId, 'userId')
-        console.log('userIDIDIDID', userId)
         if (userId) {
           let user = await this.userCollection.findOne({ _id: ObjectID.createFromHexString(userId) })
           if (!user) return next(new Error('user not found'))
@@ -90,7 +89,7 @@ class Lab {
           await redis.rename(oldSocketId, socket.id)
         }
       } catch (err) {
-        console.error('ERRRRRRRRRRR', err)
+        console.error(err)
         // ignore the error
       }
     }
@@ -147,6 +146,7 @@ class Lab {
   async register (socket, data, cb) {
     console.log('register!')
     try {
+      let user
       switch (data.method) {
         case 'email':
           let salt = await bcrypt.genSalt(SALT_WORK_FACTOR)
@@ -162,14 +162,14 @@ class Lab {
           }
 
           /* TODO: email verification */
-          let user = response.ops[0]
-          socket.user = user
-          const { password, ...sUser } = user
-          cb(null, sUser)
+          user = response.ops[0]
           break
         default:
           throw new Error('authentication method is under development')
       }
+      socket.user = user
+      const { password, ...sUser } = user
+      cb(null, sUser)
     } catch (err) {
       if (err.code === 11000) return cb(new Error('user already exists'))
       cb(err)
@@ -190,27 +190,27 @@ class Lab {
           let isMatch = await bcrypt.compare(data.password, user.password)
           if (!isMatch) throw new Error('Incorrect password')
 
-          socket.user = user
-          redis.hset(socket.id, 'userId', user._id)
-          cb(null, user)
           break
         case 'ldap':
           user = await this.userCollection.findOne({ ldapUser: data.user })
           if (!user) throw new Error('ldap user not found')
 
-          socket.user = user
-          redis.hset(socket.id, 'userId', user._id)
-          cb(null, user)
           break
         default:
           throw new Error('authentication method is under development')
       }
+
+      socket.user = user
+      redis.hset(socket.id, 'userId', user._id)
+      const { password, ...sUser } = user
+      cb(null, sUser)
     } catch (err) {
+      delete socket.user
       cb(err)
     }
   }
   logout (socket, data, cb) {
-    socket.user = undefined
+    delete socket.user
     redis.hdel(socket.id, 'userId', function (err) {
       console.error(err)
     })
@@ -376,7 +376,7 @@ class Lab {
       }
 
       cb(null, {
-        data: { ok: true }
+        data: { ok: true, result: response.result }
       })
     } catch (err) {
       cb(err)

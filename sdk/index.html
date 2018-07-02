@@ -16,16 +16,10 @@
         async function start() {
             try {
                 var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
-                let random = ~~(Math.random() * 1000000)
-                let register = await lab.register({
-                    method: 'email',
-                    email: 'hello' + random + '@world.org',
-                    password: '1234'
-                })
-                console.log(register)
+
                 let user = await lab.login({
                     method: 'email',
-                    email: 'hello' + random + '@world.org',
+                    email: 'hello58137@world.org',
                     password: '1234'
                 })
                 console.log(user)
@@ -48,17 +42,19 @@
                 console.log(sub)
 
                 let compound;
-                compound = await beaker.create({testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
+                compound = await beaker.create({testString: 'Hello', QQ: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
                 console.log(compound.data())
                 
                 await sleep(1000);
                 let result = await compound.update({ ggg: 5 });
                 console.log(result);
                 await sleep(1000);
-
+                result = await compound.update({ ggg: 3 });
+                console.log(result);
+                await sleep(1000);
                 result = await compound.update({ ggg: 6 });
                 console.log(result);
-                await sleep(7000);
+                await sleep(3000);
                 result = await compound.update({ ggg: 7 });
                 console.log(result);
                 await sleep(1000);
@@ -73,7 +69,10 @@
 
                 await lab.synthesize(async function (lab) {
                     let compound = await lab.beaker('beaker1').create({ transactionDate: new Date() })
-                    throw new Error('MYERR^^')
+                    console.log(compound.data())
+                    if (Math.random() < 0.5) {
+                        throw new Error('Random transaction abort :)')
+                    }
                 }).then((result) => {
                     console.log('success', result)
                 }).catch((err) => {
