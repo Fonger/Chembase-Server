@@ -27,6 +27,7 @@
     "ioredis": "^3.2.2",
     "is-plain-object": "^2.0.4",
     "jsep": "^0.3.4",
+    "ldapauth-fork": "^4.0.2",
     "mongo-parse": "^2.1.0",
     "mongodb": "^3.1.0",
     "mongodb-extended-json": "^1.10.0",

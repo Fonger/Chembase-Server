@@ -5,6 +5,7 @@ const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
+const { EmailAuth, LdapAuth } = require('../auth')
 
 const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
@@ -25,9 +26,13 @@ class Lab {
     this.authMethods = rawLab.auth
 
     this.userCollection = this.database.collection('_users')
-    this.userCollection.createIndex({ email: 1 }, { sparse: true, unique: true })
+    this.userCollection.createIndex({ method: 1, email: 1 }, { sparse: true, unique: true })
       .then(console.log)
       .catch(console.error)
+    this.userCollection.createIndex({ method: 1, username: 1 }, { sparse: true, unique: true })
+      .then(console.log)
+      .catch(console.error)
+
     this.io = socketIO.of(`/${rawLab.id}`)
     this.io.use(this.ioMiddleware.bind(this))
     this.io.on('connection', this.onConnection.bind(this))
@@ -35,6 +40,40 @@ class Lab {
       'http://localhost:8080',
       'http://localhost:9966'
     ]
+
+    this.authConfig = {
+      email: {
+        enabled: true
+      },
+      ldap: {
+        enabled: true,
+        url: 'ldaps://dummyldap.auth.chembase.com.tw',
+        searchBase: 'ou=People,dc=auth,dc=chembase,dc=com,dc=tw',
+        searchFilter: '(uid={{username}})',
+        groupSearchBase: 'ou=Group,dc=auth,dc=chembase,dc=com,dc=tw',
+        groupSearchFilter: '(|(&(cn=*)(memberUid={{user.uid}}))(&(cn=*)(gidNumber={{user.gidNumber}})))',
+        tlsOptions: {
+          rejectUnauthorized: false
+        },
+        cache: false
+      }
+    }
+
+    for (const [method, config] of Object.entries(this.authConfig)) {
+      if (!config.enabled) continue
+
+      switch (method) {
+        case 'email':
+          this.emailAuth = new EmailAuth(this.userCollection)
+          break
+        case 'ldap':
+          this.ldapAuth = new LdapAuth(this.userCollection, config)
+          break
+        default:
+          throw new Error(`Unknown auth method $method`)
+      }
+    }
+
     // this.beakers = rawLab.beakers
     // dummy data
     this.rawBeakers = [
@@ -181,22 +220,15 @@ class Lab {
   async login (socket, data, cb) {
     console.log('login!')
     try {
-      if (typeof this.authMethods[data.method] === 'undefined') {
-        return new Error('authentication method is unsupported')
-      }
       let user
       switch (data.method) {
         case 'email':
-          user = await this.userCollection.findOne({ email: data.email })
+          user = await this.emailAuth.login(data)
           if (!user) throw new Error('User not found')
-
-          let isMatch = await bcrypt.compare(data.password, user.password)
-          if (!isMatch) throw new Error('Incorrect password')
 
           break
         case 'ldap':
-          user = await this.userCollection.findOne({ ldapUser: data.user })
-          if (!user) throw new Error('ldap user not found')
+          user = await this.ldapAuth.login(data)
 
           break
         default:
