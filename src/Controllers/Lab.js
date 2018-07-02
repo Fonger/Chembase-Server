@@ -1,6 +1,6 @@
 const Database = require('./Database')
 const Redis = require('ioredis')
-const bcrypt = require('bcrypt-promise')
+const bcrypt = require('bcrypt')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
@@ -141,7 +141,11 @@ class Lab {
       }
     }
     delete socket.user
-    redis.expire(socket.id, 30) // expire session if offline over 30 seconds
+
+    // expire session if offline over 60 seconds
+    redis.expire(socket.id, 60, function (err) {
+      console.error(err)
+    })
   }
   async register (socket, data, cb) {
     console.log('register!')
@@ -149,8 +153,7 @@ class Lab {
       let user
       switch (data.method) {
         case 'email':
-          let salt = await bcrypt.genSalt(SALT_WORK_FACTOR)
-          let hashedPassword = await bcrypt.hash(data.password, salt)
+          let hashedPassword = await bcrypt.hash(data.password, SALT_WORK_FACTOR)
 
           let response = await this.userCollection.insertOne({
             email: data.email,
