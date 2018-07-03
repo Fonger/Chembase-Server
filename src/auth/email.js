@@ -8,6 +8,7 @@ class EmailAuth extends BaseAuth {
     this.emailConfig = emailConfig
   }
   async login (credential) {
+    console.log(credential.email)
     const user = await this.userCollection.findOne({ email: credential.email, method: 'email' })
     if (!user) throw new Error('User not found')
 

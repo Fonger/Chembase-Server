@@ -1,13 +1,11 @@
 const Database = require('./Database')
 const Redis = require('ioredis')
-const bcrypt = require('bcrypt')
 const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
 const { EmailAuth, LdapAuth } = require('../auth')
 
-const SALT_WORK_FACTOR = 10
 require('../utils/errorjson')
 
 const redis = new Redis({
@@ -46,7 +44,7 @@ class Lab {
         enabled: true
       },
       ldap: {
-        enabled: true,
+        enabled: false,
         url: 'ldaps://dummyldap.auth.chembase.com.tw',
         searchBase: 'ou=People,dc=auth,dc=chembase,dc=com,dc=tw',
         searchFilter: '(uid={{username}})',
@@ -192,19 +190,8 @@ class Lab {
       let user
       switch (data.method) {
         case 'email':
-          let hashedPassword = await bcrypt.hash(data.password, SALT_WORK_FACTOR)
-
-          let response = await this.userCollection.insertOne({
-            email: data.email,
-            password: hashedPassword
-          })
-
-          if (response.result.n === 0) {
-            throw new Error('user already exists')
-          }
-
+          user = this.emailAuth.register({ email: data.email, password: data.password })
           /* TODO: email verification */
-          user = response.ops[0]
           break
         default:
           throw new Error('authentication method is under development')
@@ -224,12 +211,9 @@ class Lab {
       switch (data.method) {
         case 'email':
           user = await this.emailAuth.login(data)
-          if (!user) throw new Error('User not found')
-
           break
         case 'ldap':
           user = await this.ldapAuth.login(data)
-
           break
         default:
           throw new Error('authentication method is under development')
