@@ -33,6 +33,8 @@ class LdapAuth extends BaseAuth {
     this.auth = util.promisify(ldap.authenticate.bind(ldap))
   }
   async login (credential) {
+    this.validateCredential(credential)
+
     let ldapUser = await this.auth(credential.username, credential.password)
 
     if (ldapUser._groups) {
@@ -48,6 +50,18 @@ class LdapAuth extends BaseAuth {
 
     if (userResult.ok !== 1) throw new Error('Unknown Error')
     return userResult.value
+  }
+  validateCredential (credential) {
+    if (typeof credential !== 'object') {
+      throw new TypeError('Invalid credential')
+    }
+    // username is already sanitized in module
+    if (typeof credential.username !== 'string') {
+      throw new TypeError('Invalid email')
+    }
+    if (typeof credential.password !== 'string') {
+      throw new TypeError('Invalid password')
+    }
   }
 }
 

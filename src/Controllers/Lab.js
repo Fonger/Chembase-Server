@@ -190,17 +190,19 @@ class Lab {
       let user
       switch (data.method) {
         case 'email':
-          user = this.emailAuth.register({ email: data.email, password: data.password })
+          user = await this.emailAuth.register({ email: data.email, password: data.password })
           /* TODO: email verification */
           break
         default:
           throw new Error('authentication method is under development')
       }
       socket.user = user
+      redis.hset(socket.id, 'userId', user._id, function (err) {
+        console.error(err)
+      })
       const { password, ...sUser } = user
       cb(null, sUser)
     } catch (err) {
-      if (err.code === 11000) return cb(new Error('user already exists'))
       cb(err)
     }
   }
@@ -220,7 +222,9 @@ class Lab {
       }
 
       socket.user = user
-      redis.hset(socket.id, 'userId', user._id)
+      redis.hset(socket.id, 'userId', user._id, function (err) {
+        console.error(err)
+      })
       const { password, ...sUser } = user
       cb(null, sUser)
     } catch (err) {
