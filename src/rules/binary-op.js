@@ -1,5 +1,6 @@
-const { PotentialMatch, CompoundCondition } = require('./types')
+const { PotentialMatch, CompoundCondition, ImplicitCompare } = require('./types')
 const deepEqual = require('bson-fast-deep-equal')
+const isPlainObject = require('is-plain-object')
 
 const binaryOps = {
   '|': function (a, b, query) { throw new Error('Invalid operator |') },
@@ -64,155 +65,135 @@ const binaryOps = {
   },
   '<': function (a, b, query) {
     if (query) {
-      if (a instanceof CompoundCondition && typeof b === 'number') {
+      if (a instanceof CompoundCondition || b instanceof CompoundCondition) {
+        if (b instanceof CompoundCondition) [a, b] = [b, a]
         let condition = query.conditions[a.path]
         if (!condition) return false
 
-        if (typeof condition === 'number') {
-          return condition < b
-        }
-        if (typeof condition.$eq === 'number') {
-          return condition < b
-        }
-        if (typeof condition.$lt === 'number') {
-          return new PotentialMatch(condition.$lt <= b)
-        }
-        if (typeof condition.$lte === 'number') {
-          return new PotentialMatch(condition.lte < b)
-        }
-        return new PotentialMatch(false)
-      } else if (b instanceof CompoundCondition && typeof a === 'number') {
-        let condition = query.conditions[b.path]
-        if (!condition) return false
+        if (isPlainObject(condition)) {
+          // if condition has some other decorator e.g. $gt $lt
+          // { a: { $gt: 5} }
+          // || typeof query.conditions.$eq !== 'undefined'
 
-        if (typeof condition === 'number') {
-          return condition < a
+          if (typeof condition.$eq !== 'undefined') {
+            return ImplicitCompare(condition.$eq, b) < 0
+          }
+
+          if (typeof condition.$lt !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$lt, b) <= 0)
+          }
+
+          if (typeof condition.$lte !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$lte, b) < 0)
+          }
+          return new PotentialMatch(false)
+        } else {
+          // if condition has definite value
+          // { a: 5 }
+          return ImplicitCompare(condition, b) < 0
         }
-        if (typeof condition.$eq === 'number') {
-          return condition < a
-        }
-        if (typeof condition.$lt === 'number') {
-          return new PotentialMatch(condition.$lt <= a)
-        }
-        if (typeof condition.$lte === 'number') {
-          return new PotentialMatch(condition.$lte < a)
-        }
-        return new PotentialMatch(false)
       }
     }
-    if (typeof a !== typeof b) return false
-    return a < b
+    return ImplicitCompare(a, b) < 0
   },
   '>': function (a, b, query) {
     if (query) {
-      if (a instanceof CompoundCondition && typeof b === 'number') {
+      if (a instanceof CompoundCondition || b instanceof CompoundCondition) {
+        if (b instanceof CompoundCondition) [a, b] = [b, a]
         let condition = query.conditions[a.path]
         if (!condition) return false
 
-        if (typeof condition === 'number') {
-          return condition > b
-        }
-        if (typeof condition.$eq === 'number') {
-          return condition > b
-        }
-        if (typeof condition.$gt === 'number') {
-          return new PotentialMatch(condition.$gt >= b)
-        }
-        if (typeof condition.$gte === 'number') {
-          return new PotentialMatch(condition.$gte > b)
-        }
-        return new PotentialMatch(false)
-      } else if (b instanceof CompoundCondition && typeof a === 'number') {
-        let condition = query.conditions[b.path]
-        if (!condition) return false
+        if (isPlainObject(condition)) {
+          // if condition has some other decorator e.g. $gt $lt
+          // { a: { $gt: 5} }
+          // || typeof query.conditions.$eq !== 'undefined'
 
-        if (typeof condition === 'number') {
-          return condition > a
+          if (typeof condition.$eq !== 'undefined') {
+            return ImplicitCompare(condition.$eq, b) > 0
+          }
+
+          if (typeof condition.$gt !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$gt, b) >= 0)
+          }
+
+          if (typeof condition.$gte !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$gte, b) > 0)
+          }
+          return new PotentialMatch(false)
+        } else {
+          // if condition has definite value
+          // { a: 5 }
+          return ImplicitCompare(condition, b) > 0
         }
-        if (typeof condition.$eq === 'number') {
-          return condition > a
-        }
-        if (typeof condition.$gt === 'number') {
-          return new PotentialMatch(condition.$gt >= a)
-        }
-        if (typeof condition.$gte === 'number') {
-          return new PotentialMatch(condition.$gte > a)
-        }
-        return new PotentialMatch(false)
       }
     }
-    if (typeof a !== typeof b) return false
-    return a > b
+    return ImplicitCompare(a, b) > 0
   },
   '<=': function (a, b, query) {
     if (query) {
-      if (a instanceof CompoundCondition && typeof b === 'number') {
+      if (a instanceof CompoundCondition || b instanceof CompoundCondition) {
+        if (b instanceof CompoundCondition) [a, b] = [b, a]
         let condition = query.conditions[a.path]
         if (!condition) return false
 
-        if (typeof condition === 'number') {
-          return condition <= b
-        }
-        if (typeof condition.$eq === 'number') {
-          return condition <= b
-        }
-        if (typeof condition.$lt === 'number') {
-          return new PotentialMatch(condition.$lt <= b)
-        }
-        if (typeof condition.$lte === 'number') {
-          return new PotentialMatch(condition.$lte <= b)
-        }
-        return new PotentialMatch(false)
-      } else if (b instanceof CompoundCondition && typeof a === 'number') {
-        let condition = query.conditions[b.path]
-        if (!condition) return false
+        if (isPlainObject(condition)) {
+          // if condition has some other decorator e.g. $gt $lt
+          // { a: { $gt: 5} }
+          // || typeof query.conditions.$eq !== 'undefined'
 
-        if (typeof condition === 'number') {
-          return condition >= a
+          if (typeof condition.$eq !== 'undefined') {
+            return ImplicitCompare(condition.$eq, b) <= 0
+          }
+
+          if (typeof condition.$lt !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$lt, b) <= 0)
+          }
+
+          if (typeof condition.$lte !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$lte, b) <= 0)
+          }
+          return new PotentialMatch(false)
+        } else {
+          // if condition has definite value
+          // { a: 5 }
+          return ImplicitCompare(condition, b) <= 0
         }
-        if (typeof condition.$eq === 'number') {
-          return condition >= a
-        }
-        if (typeof condition.$lt === 'number') {
-          return new PotentialMatch(condition.$lt <= a)
-        }
-        if (typeof condition.$lte === 'number') {
-          return new PotentialMatch(condition.$lte <= a)
-        }
-        return new PotentialMatch(false)
       }
     }
-    if (typeof a !== typeof b) return false
-    return a <= b
+    return ImplicitCompare(a, b) <= 0
   },
   '>=': function (a, b, query) {
     if (query) {
-      if (a instanceof CompoundCondition && typeof b === 'number') {
+      if (a instanceof CompoundCondition || b instanceof CompoundCondition) {
+        if (b instanceof CompoundCondition) [a, b] = [b, a]
         let condition = query.conditions[a.path]
         if (!condition) return false
 
-        if (typeof condition.$gt === 'number') {
-          return new PotentialMatch(condition.$gt >= b)
-        }
-        if (typeof condition.$gte === 'number') {
-          return new PotentialMatch(condition.$gte >= b)
-        }
-        return new PotentialMatch(false)
-      } else if (b instanceof CompoundCondition && typeof a === 'number') {
-        let condition = query.conditions[b.path]
-        if (!condition) return false
+        if (isPlainObject(condition)) {
+          // if condition has some other decorator e.g. $gt $lt
+          // { a: { $gt: 5} }
+          // || typeof query.conditions.$eq !== 'undefined'
 
-        if (typeof condition.$gt === 'number') {
-          return new PotentialMatch(condition.$gt >= a)
+          if (typeof condition.$eq !== 'undefined') {
+            return ImplicitCompare(condition.$eq, b) >= 0
+          }
+
+          if (typeof condition.$gt !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$gt, b) >= 0)
+          }
+
+          if (typeof condition.$gte !== 'undefined') {
+            return new PotentialMatch(ImplicitCompare(condition.$gte, b) >= 0)
+          }
+          return new PotentialMatch(false)
+        } else {
+          // if condition has definite value
+          // { a: 5 }
+          return ImplicitCompare(condition, b) >= 0
         }
-        if (typeof condition.$gte === 'number') {
-          return new PotentialMatch(condition.$gte >= a)
-        }
-        return new PotentialMatch(false)
       }
     }
-    if (typeof a !== typeof b) return false
-    return a >= b
+    return ImplicitCompare(a, b) >= 0
   },
   '<<': function (a, b, query) { return a << b },
   '>>': function (a, b, query) { return a >> b },
