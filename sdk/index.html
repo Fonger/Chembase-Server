@@ -17,9 +17,9 @@
             try {
                 var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
 
-                let user = await lab.login({
+                let user = await lab.register({
                     method: 'email',
-                    email: 'fonger555@test.com',
+                    email: 'fonger123@test.com',
                     password: '1234'
                 })
                 console.log(user)

@@ -1,6 +1,6 @@
 const Database = require('./Database')
 const Redis = require('ioredis')
-const ObjectID = require('mongodb').ObjectID
+// const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
@@ -21,13 +21,17 @@ class Lab {
     console.log(`    Lab id: ${rawLab.id} key: ${rawLab.apiKey}`)
     this.database = Database.MongoClient.db(rawLab.id)
     this.apiKey = rawLab.apiKey
-    this.authMethods = rawLab.auth
+    this.auth = rawLab.auth
 
     this.userCollection = this.database.collection('_users')
-    this.userCollection.createIndex({ method: 1, email: 1 }, { sparse: true, unique: true })
+    this.userCollection.createIndex(
+      { method: 1, email: 1 },
+      { partialFilterExpression: { email: { $exists: true } }, unique: true })
       .then(console.log)
       .catch(console.error)
-    this.userCollection.createIndex({ method: 1, username: 1 }, { sparse: true, unique: true })
+    this.userCollection.createIndex(
+      { method: 1, username: 1 },
+      { partialFilterExpression: { username: { $exists: true } }, unique: true })
       .then(console.log)
       .catch(console.error)
 
@@ -39,30 +43,12 @@ class Lab {
       'http://localhost:9966'
     ]
 
-    this.authConfig = {
-      email: {
-        enabled: true
-      },
-      ldap: {
-        enabled: false,
-        url: 'ldaps://dummyldap.auth.chembase.com.tw',
-        searchBase: 'ou=People,dc=auth,dc=chembase,dc=com,dc=tw',
-        searchFilter: '(uid={{username}})',
-        groupSearchBase: 'ou=Group,dc=auth,dc=chembase,dc=com,dc=tw',
-        groupSearchFilter: '(|(&(cn=*)(memberUid={{user.uid}}))(&(cn=*)(gidNumber={{user.gidNumber}})))',
-        tlsOptions: {
-          rejectUnauthorized: false
-        },
-        cache: false
-      }
-    }
-
-    for (const [method, config] of Object.entries(this.authConfig)) {
+    for (const [method, config] of Object.entries(this.auth)) {
       if (!config.enabled) continue
 
       switch (method) {
         case 'email':
-          this.emailAuth = new EmailAuth(this.userCollection)
+          this.emailAuth = new EmailAuth(this.userCollection, config)
           break
         case 'ldap':
           this.ldapAuth = new LdapAuth(this.userCollection, config)
@@ -72,30 +58,7 @@ class Lab {
       }
     }
 
-    // this.beakers = rawLab.beakers
-    // dummy data
-    this.rawBeakers = [
-      {
-        id: 'beaker1',
-        rules: {
-          list: 'request.user != null',
-          get: 'request.user != null',
-          update: 'request.user != null',
-          create: 'request.user != null',
-          delete: 'request.user != null'
-        }
-      },
-      {
-        id: 'beaker2',
-        rules: {
-          list: 'true',
-          get: 'true',
-          update: 'true',
-          create: 'true',
-          delete: 'true'
-        }
-      }
-    ]
+    this.rawBeakers = rawLab.beakers || []
     this.beakers = {}
     this.rawBeakers.forEach(beaker => {
       this.beakers[beaker.id] = beaker
@@ -120,7 +83,7 @@ class Lab {
       try {
         let userId = await redis.hget(oldSocketId, 'userId')
         if (userId) {
-          let user = await this.userCollection.findOne({ _id: ObjectID.createFromHexString(userId) })
+          let user = await this.userCollection.findOne({ _id: BSON.ObjectId.createFromHexString(userId) })
           if (!user) return next(new Error('user not found'))
           socket.user = user
           await redis.rename(oldSocketId, socket.id)
@@ -328,7 +291,7 @@ class Lab {
       }
 
       let compound = await collection.findOne(
-        { _id: ObjectID.createFromHexString(request._id) }, options
+        { _id: BSON.ObjectId.createFromHexString(request._id) }, options
       )
       if (!compound) throw new Error('Compound does not exist')
 
@@ -351,7 +314,7 @@ class Lab {
     try {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
-      let queryById = { _id: ObjectID.createFromHexString(request._id) }
+      let queryById = { _id: BSON.ObjectId.createFromHexString(request._id) }
 
       let options = {}
       if (request.txnSessionId) {
@@ -409,7 +372,7 @@ class Lab {
     try {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
-      let queryById = { _id: ObjectID.createFromHexString(request._id) }
+      let queryById = { _id: BSON.ObjectId.createFromHexString(request._id) }
 
       let options = {}
       if (request.txnSessionId) {
