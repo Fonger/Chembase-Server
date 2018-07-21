@@ -255,7 +255,7 @@ Beaker.prototype.subscribe = function (callback) {
 
   var query = {
     beakerId: this.beakerId,
-    conditions: this._conditions
+    conditions: bson.serialize(this._conditions)
   }
 
   var self = this

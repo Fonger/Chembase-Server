@@ -249,7 +249,6 @@ class Lab {
   async find (socket, query, cb) {
     try {
       this.checkRequest(query)
-      /* TODO: rule validation */
 
       const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
       query.conditions = parsedConditions
@@ -420,10 +419,19 @@ class Lab {
       cb(err)
     }
   }
-  subscribe (socket, query, cb) {
+  async subscribe (socket, query, cb) {
     try {
-      /* TODO: rule validation */
       this.checkRequest(query)
+
+      const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
+      query.conditions = parsedConditions
+
+      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
+      let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
+      if (!passACL) {
+        throw new Error('Access denined')
+      }
+
       const changeStream = this.getChangeStream(
         query.beakerId,
         query.conditions
