@@ -20,11 +20,13 @@
                 let user = await lab.login({
                     method: 'email',
                     email: 'fonger123@test.com',
-                    password: '1234'
+                    password: '5678'
                 })
                 console.log(user)
 
-
+                await lab.changePassword('5678')
+                let qq = await lab.verify('5b41b303060fe8084280a16d', '517d4f04e1597cf575acdb4b54d07340')
+                console.log('verify qq', qq)
                 let beaker = lab.beaker('beaker1');
                 
                 let compounds = await beaker.find().where('ggg').lt(6);

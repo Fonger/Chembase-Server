@@ -106,6 +106,8 @@ class Lab {
     socket.on('register', this.register.bind(this, socket))
     socket.on('login', this.login.bind(this, socket))
     socket.on('logout', this.logout.bind(this, socket))
+    socket.on('verify', this.verify.bind(this, socket))
+    socket.on('changePassword', this.changePassword.bind(this, socket))
     socket.on('create', this.create.bind(this, socket))
     socket.on('find', this.find.bind(this, socket))
     socket.on('get', this.get.bind(this, socket))
@@ -163,7 +165,7 @@ class Lab {
       redis.hset(socket.id, 'userId', user._id, function (err) {
         console.error(err)
       })
-      const { password, ...sUser } = user
+      const { password, verifyCode, ...sUser } = user
       cb(null, sUser)
     } catch (err) {
       cb(err)
@@ -188,7 +190,7 @@ class Lab {
       redis.hset(socket.id, 'userId', user._id, function (err) {
         console.error(err)
       })
-      const { password, ...sUser } = user
+      const { password, verifyCode, ...sUser } = user
       cb(null, sUser)
     } catch (err) {
       delete socket.user
@@ -201,6 +203,40 @@ class Lab {
       console.error(err)
     })
     cb()
+  }
+  async verify (socket, data, cb) {
+    try {
+      let user
+      switch (data.method) {
+        case 'email':
+          user = await this.emailAuth.verify(data.id, data.verifyCode)
+          const { password, verifyCode, ...sUser } = user
+          cb(null, sUser)
+          break
+        default:
+          throw new Error('unknown authentication method')
+      }
+    } catch (err) {
+      cb(err)
+    }
+  }
+  async changePassword (socket, data, cb) {
+    try {
+      if (!socket.user || !socket.user._id) {
+        throw new Error('Not login')
+      }
+      switch (data.method) {
+        case 'email':
+          socket.user = await this.emailAuth.changePassword(socket.user._id, data.password)
+          const { password, verifyCode, ...sUser } = socket.user
+          cb(null, sUser)
+          break
+        default:
+          throw new Error('unknown authentication method')
+      }
+    } catch (err) {
+      cb(err)
+    }
   }
   checkRequest (request) {
     if (

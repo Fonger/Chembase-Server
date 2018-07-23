@@ -68,8 +68,22 @@ class EmailAuth extends BaseAuth {
       { $set: { verified: true }, $unset: { code: true } },
       { returnOriginal: false })
 
-    if (!user) throw new Error('User not found')
-    return user
+    if (!user.value) throw new Error('User not found')
+    return user.value
+  }
+  async changePassword (_id, newPassword) {
+    if (!(_id instanceof BSON.ObjectId) || typeof newPassword !== 'string') {
+      throw new TypeError('id must be ObjectId and password must be string')
+    }
+    let hashedPassword = await bcrypt.hash(newPassword, SALT_WORK_FACTOR)
+
+    const user = await this.userCollection.findOneAndUpdate(
+      { _id },
+      { $set: { password: hashedPassword } },
+      { returnOriginal: false })
+
+    if (!user.value) throw new Error('User not found')
+    return user.value
   }
   validateCredential (credential) {
     if (typeof credential !== 'object') {

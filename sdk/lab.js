@@ -90,6 +90,44 @@ Lab.prototype.logout = function (data, callback) {
   return promise
 }
 
+Lab.prototype.verify = function (id, verifyCode, callback) {
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.socket.emit('verify', { id: id, method: 'email', verifyCode: verifyCode }, function (err, user) {
+      if (err) return reject(err)
+      resolve(user)
+      console.log('verify user', user)
+    })
+  })
+  if (callback) {
+    return promise.then(function (user) {
+      callback(null, user)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
+}
+
+Lab.prototype.changePassword = function (newPassword, callback) {
+  var self = this
+  var promise = new Promise(function (resolve, reject) {
+    self.socket.emit('changePassword', { method: 'email', password: newPassword }, function (err, user) {
+      if (err) return reject(err)
+      resolve(user)
+      console.log('change password', user)
+    })
+  })
+  if (callback) {
+    return promise.then(function (user) {
+      callback(null, user)
+    }, function (err) {
+      callback(err)
+    })
+  }
+  return promise
+}
+
 Lab.prototype.register = function (data, callback) {
   console.log('register start')
   var self = this
