@@ -527,19 +527,20 @@ class Lab {
     let changeStream = this.changeStreams.get(key)
 
     if (!changeStream) {
-      let lookupCondition = Object.assign(...Object.entries(condition)
-        .map(([k, v]) => ({['fullDocument.' + k]: v})))
-
-      const pipeline = [
-        { $match: lookupCondition },
-        {
-          $project: {
-            documentKey: 0,
-            ns: 0,
-            clusterTime: 0
-          }
+      const entries = Object.entries(condition)
+      const pipeline = []
+      if (entries.length > 0) {
+        const lookupCondition = Object.assign(...entries
+          .map(([k, v]) => ({['fullDocument.' + k]: v})))
+        pipeline.push({ $match: lookupCondition })
+      }
+      pipeline.push({
+        $project: {
+          documentKey: 0,
+          ns: 0,
+          clusterTime: 0
         }
-      ]
+      })
       const options = {
         fullDocument: 'updateLookup'
       }
