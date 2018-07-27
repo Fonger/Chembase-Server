@@ -22,7 +22,7 @@
     "bson": "^3.0.2",
     "bson-ext": "^2.0.0",
     "bson-fast-deep-equal": "github:Fonger/bson-fast-deep-equal",
-    "buffer": "^5.1.0",
+    "buffer": "^5.2.0",
     "express": "^4.16.3",
     "ioredis": "^3.2.2",
     "is-plain-object": "^2.0.4",
