@@ -1,28 +1,33 @@
-const Database = require('./Database')
+const Database = require('../database')
 const Redis = require('ioredis')
 // const ObjectID = require('mongodb').ObjectID
 const BSON = require('../utils/bsonSerializer')
 const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
 const { EmailAuth, LdapAuth } = require('../auth')
+const server = require('./server')
 
 require('../utils/errorjson')
 
 const redis = new Redis({
   port: 6379,
-  host: '127.0.0.1',
-  family: 4,
+  host: 'ip6-localhost',
+  family: 6,
   // password: 'auth',
   db: 0
 })
 
+const globalLabMap = new Map()
+
 class Lab {
-  constructor (rawLab, rawDeveloper, socketIO) {
+  constructor (rawLab, rawDeveloper) {
     console.log(`    Lab id: ${rawLab.id} key: ${rawLab.apiKey}`)
+    this.id = rawLab.id
     this.database = Database.MongoClient.db(rawLab.id)
     this.apiKey = rawLab.apiKey
     this.auth = rawLab.auth
-
+    this.beakers = {}
+    this.beakerIdlist = []
     this.userCollection = this.database.collection('_users')
     this.userCollection.createIndex(
       { method: 1, email: 1 },
@@ -35,44 +40,66 @@ class Lab {
       .then(console.log)
       .catch(console.error)
 
-    this.io = socketIO.of(`/${rawLab.id}`)
+    this.io = server.io.of(`/labs/${rawLab.id}`)
     this.io.use(this.ioMiddleware.bind(this))
     this.io.on('connection', this.onConnection.bind(this))
-    this.allowOrigins = rawLab.allowOrigins || [
-      'http://localhost:8080',
-      'http://localhost:9966'
-    ]
+
+    this.updateAllowedOrigins(rawLab.allowOrigins)
 
     for (const [method, config] of Object.entries(this.auth)) {
       if (!config.enabled) continue
 
       switch (method) {
         case 'email':
-          this.emailAuth = new EmailAuth(this.userCollection, config)
+          this.setupEmailAuth(config)
           break
         case 'ldap':
-          this.ldapAuth = new LdapAuth(this.userCollection, config)
+          this.setupLdapAuth(config)
           break
         default:
           throw new Error(`Unknown auth method $method`)
       }
     }
 
-    this.rawBeakers = rawLab.beakers || []
-    this.beakers = {}
-    this.rawBeakers.forEach(beaker => {
-      this.beakers[beaker.id] = beaker
+    rawLab.beakers.forEach(beaker => {
+      this.newBeaker(beaker)
     })
-    this.beakerIdlist = Object.keys(this.beakers)
+
     this.changeStreams = new Map()
+    globalLabMap.set(this.id, this)
+  }
+  setupEmailAuth (config) {
+    if (this.emailAuth) {
+      this.emailAuth.transporter.close()
+    }
+    if (config.enabled) {
+      this.emailAuth = new EmailAuth(this.userCollection, config)
+    }
+  }
+  setupLdapAuth (config) {
+    if (this.ldapAuth) {
+      this.ldapAuth.ldap.close()
+    }
+    if (config.enabled) {
+      this.ldapAuth = new LdapAuth(this.userCollection, config)
+    }
+  }
+  updateAllowedOrigins (config) {
+    this.allowOrigins = config
+  }
+  newBeaker (rawBeaker) {
+    this.beakers[rawBeaker.id] = rawBeaker
+    this.beakerIdlist.push(rawBeaker.id)
+  }
+  updateBeaker (rawBeaker) {
+    this.beakers[rawBeaker.id] = rawBeaker
+    this.beakerIdlist.splice(this.beakerIdlist.indexOf(rawBeaker.id), 1, rawBeaker)
+  }
+  deleteBeaker (rawBeaker) {
+    delete this.beaker[rawBeaker.id]
+    this.beakerIdlist.splice(this.beakerIdlist.indexOf(rawBeaker.id), 1)
   }
   async ioMiddleware (socket, next) {
-    console.log('middleware!!')
-    console.log(socket.handshake.query)
-    if (socket.handshake.query.apiKey !== this.apiKey) {
-      return next(new Error('API Key is not matched'))
-    }
-
     if (!this.allowOrigins.includes(socket.handshake.headers.origin)) {
       return next(new Error('lab origin not allowed'))
     }
@@ -255,7 +282,7 @@ class Lab {
       let compound = BSON.deserialize(Buffer.from(request.data))
 
       CompoundUtils.validateObject(compound)
-      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.create)
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.create)
       let passACL = await ruleRunner.run({ request: { compound, user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
@@ -289,7 +316,7 @@ class Lab {
       const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
       query.conditions = parsedConditions
 
-      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
+      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
       let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
       if (!passACL) {
         throw new Error('Access denined')
@@ -330,7 +357,7 @@ class Lab {
       )
       if (!compound) throw new Error('Compound does not exist')
 
-      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.get)
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.get)
       let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
@@ -371,7 +398,7 @@ class Lab {
       }
 
       CompoundUtils.validateObject(context.request.compound)
-      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.update)
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.update)
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
         throw new Error('Access denined')
@@ -420,7 +447,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       /* TODO: rule validation */
-      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rules.delete)
+      let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.delete)
       let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
       if (!passACL) {
         throw new Error('Access denined')
@@ -462,7 +489,7 @@ class Lab {
       const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
       query.conditions = parsedConditions
 
-      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rules.list)
+      let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
       let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
       if (!passACL) {
         throw new Error('Access denined')
@@ -625,6 +652,15 @@ class Lab {
       cb(err)
     }
   }
+  cleanUp () {
+    if (this.emailAuth) this.emailAuth.transporter.close()
+    if (this.ldapAuth) this.ldapAuth.ldap.close()
+    /* TODO: revoke access role */
+    // this.database.dropDatabase()
+    console.log('cleaning up database...')
+  }
 }
+
+Lab.get = labId => globalLabMap.get(labId)
 
 module.exports = Lab

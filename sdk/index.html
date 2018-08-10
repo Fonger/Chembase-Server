@@ -15,7 +15,7 @@
         var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         async function start() {
             try {
-                var lab = new Chembase.Lab({ labId: 'testdb', apiKey: '8f65263ad306bc0e0d765e3dff69fb43' });
+                var lab = new Chembase.Lab('testdb-1234');
 
                 let user = await lab.login({
                     method: 'email',
@@ -25,7 +25,7 @@
                 console.log(user)
 
                 await lab.changePassword('5678')
-                let qq = await lab.verify('5b41b303060fe8084280a16d', '517d4f04e1597cf575acdb4b54d07340')
+                let qq = await lab.verify('5b5cd5d7c752193a04858622', '8b8d77f27286022b088a69c21d4ebc32')
                 console.log('verify qq', qq)
                 let beaker = lab.beaker('beaker1');
                 

@@ -12,7 +12,18 @@ class EmailAuth extends BaseAuth {
     super(userCollection)
     this.emailConfig = emailConfig
 
-    this.transporter = nodemailer.createTransport(this.emailConfig.smtp)
+    this.transporter = nodemailer.createTransport({
+      auth: {
+        user: emailConfig.user,
+        pass: emailConfig.pass
+      },
+      secure: emailConfig.secureMethod === 'SSL', // STARTTLS: false
+      host: emailConfig.host,
+      port: emailConfig.port,
+      tls: {
+        rejectUnauthorized: !emailConfig.trustInvalidCertificate
+      }
+    })
   }
   async login (credential) {
     this.validateCredential(credential)

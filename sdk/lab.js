@@ -5,7 +5,7 @@ var utils = require('./utils')
 
 var Lab = function (options) {
   this.sessionId = undefined
-  var socket = io('http://localhost:8080/' + options.labId, {
+  var socket = io('http://localhost:8080/labs/' + options.labId, {
     query: {
       apiKey: options.apiKey
     },

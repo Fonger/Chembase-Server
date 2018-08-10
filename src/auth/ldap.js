@@ -6,9 +6,11 @@ class LdapAuth extends BaseAuth {
   constructor (userCollection, ldapConfig) {
     super(userCollection)
 
-    const groupSearchFilterStr = ldapConfig.groupSearchFilter
+    let groupSearchFilterStr = ldapConfig.groupSearchFilter
+    let groupSearchFilterFunc
+
     if (typeof groupSearchFilterStr === 'string') {
-      ldapConfig.groupSearchFilter = (user) => {
+      groupSearchFilterFunc = (user) => {
         return groupSearchFilterStr.replace(/{{user\.([^}]+)}}/g, (match, group, offset, str) => {
           try {
             let properties = group.split('.')
@@ -24,12 +26,21 @@ class LdapAuth extends BaseAuth {
         })
       }
     }
-    const ldap = new LDAP(ldapConfig)
+    const ldap = new LDAP({
+      url: ldapConfig.url,
+      searchBase: ldapConfig.searchBase,
+      searchFilter: ldapConfig.searchFilter,
+      groupSearchBase: ldapConfig.groupSearchBase,
+      groupSearchFilter: groupSearchFilterFunc,
+      tlsOptions: {
+        rejectUnauthorized: !ldapConfig.trustInvalidCertificate
+      }
+    })
     ldap.on('error', function (err) {
       console.error('ldap error')
       console.error(err)
     })
-
+    this.ldap = ldap
     this.auth = util.promisify(ldap.authenticate.bind(ldap))
   }
   async login (credential) {
