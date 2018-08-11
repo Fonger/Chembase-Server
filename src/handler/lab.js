@@ -11,8 +11,8 @@ require('../utils/errorjson')
 
 const redis = new Redis({
   port: 6379,
-  host: 'ip6-localhost',
-  family: 6,
+  host: '127.0.0.1',
+  family: 4,
   // password: 'auth',
   db: 0
 })

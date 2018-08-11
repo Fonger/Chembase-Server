@@ -26,15 +26,35 @@ class LdapAuth extends BaseAuth {
         })
       }
     }
+
+    let tlsOptions
+    switch (ldapConfig.tlsMode) {
+      case 'PINNED':
+        tlsOptions = {
+          ca: ldapConfig.ca,
+          checkServerIdentity: function (hostname, cert) {
+            /* workaround for misused multiple CN */
+            if (!cert.subject.CN.split(',').includes(hostname)) {
+              throw new Error('CN does not match!')
+            }
+          }
+        }
+        break
+      case 'IGNORE':
+        tlsOptions = {rejectUnauthorized: false}
+        break
+      default:
+        tlsOptions = {}
+    }
     const ldap = new LDAP({
       url: ldapConfig.url,
+      bindDN: ldapConfig.bindDN,
+      bindCredentials: ldapConfig.bindPass,
       searchBase: ldapConfig.searchBase,
       searchFilter: ldapConfig.searchFilter,
       groupSearchBase: ldapConfig.groupSearchBase,
       groupSearchFilter: groupSearchFilterFunc,
-      tlsOptions: {
-        rejectUnauthorized: !ldapConfig.trustInvalidCertificate
-      }
+      tlsOptions
     })
     ldap.on('error', function (err) {
       console.error('ldap error')

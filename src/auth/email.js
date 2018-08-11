@@ -13,6 +13,25 @@ class EmailAuth extends BaseAuth {
 
     this.emailConfig = emailConfig
 
+    let tlsOptions
+    switch (emailConfig.smtp.tlsMode) {
+      case 'PINNED':
+        tlsOptions = {
+          ca: emailConfig.smtp.ca,
+          checkServerIdentity: function (hostname, cert) {
+            /* workaround for misused multiple CN */
+            if (!cert.subject.CN.split(',').includes(hostname)) {
+              throw new Error('CN does not match!')
+            }
+          }
+        }
+        break
+      case 'IGNORE':
+        tlsOptions = {rejectUnauthorized: false}
+        break
+      default:
+        tlsOptions = {}
+    }
     this.transporter = nodemailer.createTransport({
       auth: {
         user: emailConfig.smtp.user,
@@ -21,9 +40,7 @@ class EmailAuth extends BaseAuth {
       secure: emailConfig.smtp.secureMethod === 'SSL', // STARTTLS: false
       host: emailConfig.smtp.host,
       port: emailConfig.smtp.port,
-      tls: {
-        rejectUnauthorized: !emailConfig.smtp.trustInvalidCertificate
-      }
+      tls: tlsOptions
     })
 
     this.transporter.verify(function (error) {

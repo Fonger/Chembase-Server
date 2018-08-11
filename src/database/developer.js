@@ -26,6 +26,11 @@ const ldapUrlValidator = {
   },
   message: '{VALUE} is not a valid ldap server url'
 }
+const validCARegex = /^(?:(?!-{3,}(?:BEGIN|END) CERTIFICATE)[\s\S])*(-{3,}BEGIN CERTIFICATE(?:(?!-{3,}END CERTIFICATE)[\s\S])*?-{3,}END CERTIFICATE-{3,})(?![\s\S]*?-{3,}BEGIN CERTIFICATE[\s\S]+?-{3,}END CERTIFICATE[\s\S]*?$)/
+const caValidator = {
+  validator: function (v) { return validCARegex.test(v) },
+  message: '{VALUE} is not a valid certificate'
+}
 const invalidLabIdRegex = /(?:[/\\. "$*<>:|?]|^$|^admin$|^config$|^local$|^test$|^main$)/i
 const labIdValidator = {
   validator: function (v) {
@@ -73,7 +78,14 @@ const developerSchema = new Schema({
           user: { type: String, required: customSMTPConfigRequired },
           pass: { type: String, required: customSMTPConfigRequired },
           secureMethod: { type: String, enum: ['STARTTLS', 'SSL'], required: customSMTPConfigRequired },
-          trustInvalidCertificate: { type: Boolean, default: false, required: customSMTPConfigRequired }
+          tlsMode: { type: String, enum: ['DEFAULT', 'PINNED', 'IGNORE'], default: 'DEFAULT', required: customSMTPConfigRequired },
+          ca: {
+            type: String,
+            validator: caValidator,
+            required: function () {
+              return this.auth.email.enabled && this.auth.email.smtp.tlsMode === 'PINNED'
+            }
+          }
         },
         template: {
           verify: {
@@ -101,11 +113,20 @@ const developerSchema = new Schema({
       ldap: {
         enabled: { type: Boolean, default: false, required: true },
         url: { type: String, required: customLDAPConfigRequired, validator: ldapUrlValidator },
+        bindDN: { type: String },
+        bindPass: { type: String },
         searchBase: { type: String, required: customLDAPConfigRequired },
         searchFilter: { type: String, required: customLDAPConfigRequired },
         groupSearchBase: { type: String },
         groupSearchFilter: { type: String },
-        trustInvalidCertificate: { type: Boolean, default: false, required: customLDAPConfigRequired }
+        tlsMode: { type: String, enum: ['DEFAULT', 'PINNED', 'IGNORE'], default: 'DEFAULT', required: customLDAPConfigRequired },
+        ca: {
+          type: String,
+          validator: caValidator,
+          required: function () {
+            return this.auth.ldap.enabled && this.auth.ldap.tlsMode === 'PINNED'
+          }
+        }
       }
     }
   }]
