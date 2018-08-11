@@ -8,7 +8,7 @@ const SALT_WORK_FACTOR = 10
 const JWT_SECRET = 'secret'
 
 const customSMTPConfigRequired = function () {
-  return this.auth.email.enabled && this.auth.email.verification
+  return this.auth.email.enabled
 }
 const customLDAPConfigRequired = function () {
   return this.auth.ldap.enabled

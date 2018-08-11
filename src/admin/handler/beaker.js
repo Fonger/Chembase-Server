@@ -21,7 +21,7 @@ async function createBeaker (req, res, next) {
     await req.developer.save()
     beaker = lab.beakers.find(b => b.id === beaker.id)
     req.labInstance.newBeaker(beaker)
-    res.json({ beaker })
+    res.json(beaker)
   } catch (err) {
     next(err)
   }
@@ -36,7 +36,7 @@ async function updateBeaker (req, res, next) {
     await req.developer.save()
     beaker = req.lab.beakers.find(b => b.id === req.beaker.id)
     req.labInstance.updateBeaker(beaker)
-    res.json({ beaker })
+    res.json(beaker)
   } catch (err) {
     next(err)
   }
@@ -47,7 +47,7 @@ async function deleteBeaker (req, res, next) {
     require('mongoose').set('debug', true)
     req.beaker.remove()
     await req.developer.save()
-    res.json({ beaker: { id: req.beaker.id } })
+    res.json({ id: req.beaker.id })
   } catch (err) {
     next(err)
   }

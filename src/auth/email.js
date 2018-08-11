@@ -10,19 +10,24 @@ const VALID_EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(
 class EmailAuth extends BaseAuth {
   constructor (userCollection, emailConfig) {
     super(userCollection)
+
     this.emailConfig = emailConfig
 
     this.transporter = nodemailer.createTransport({
       auth: {
-        user: emailConfig.user,
-        pass: emailConfig.pass
+        user: emailConfig.smtp.user,
+        pass: emailConfig.smtp.pass
       },
-      secure: emailConfig.secureMethod === 'SSL', // STARTTLS: false
-      host: emailConfig.host,
-      port: emailConfig.port,
+      secure: emailConfig.smtp.secureMethod === 'SSL', // STARTTLS: false
+      host: emailConfig.smtp.host,
+      port: emailConfig.smtp.port,
       tls: {
-        rejectUnauthorized: !emailConfig.trustInvalidCertificate
+        rejectUnauthorized: !emailConfig.smtp.trustInvalidCertificate
       }
+    })
+
+    this.transporter.verify(function (error) {
+      if (error) console.error(error)
     })
   }
   async login (credential) {

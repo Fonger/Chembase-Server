@@ -28,7 +28,7 @@ async function createLab (req, res, next) {
     const labInstance = new Lab(lab, req.developer)
     lab = lab.toJSON()
     lab.beakers = labInstance.beakerIdlist.map(b => ({ id: b.id }))
-    res.json({ ok: true, lab })
+    res.json(lab)
   } catch (err) {
     next(err)
   }
@@ -71,7 +71,7 @@ async function updateLab (req, res, next) {
 
     lab = lab.toJSON()
     lab.beakers = lab.beakers.map(beaker => ({ id: beaker.id }))
-    res.json({ lab })
+    res.json(lab)
   } catch (err) {
     next(err)
   }
@@ -85,7 +85,7 @@ async function deleteLab (req, res, next) {
 
     req.lab.remove()
     await req.developer.save()
-    res.json({ lab: { id: req.lab.id } })
+    res.json({ id: req.lab.id })
   } catch (err) {
     next(err)
   }
