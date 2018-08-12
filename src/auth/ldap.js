@@ -74,6 +74,8 @@ class LdapAuth extends BaseAuth {
       ldapUser.groupGidNumbers = ldapUser._groups.map(g => g.gidNumber)
     }
 
+    credential.username = credential.username.toLowerCase()
+
     const userResult = await this.userCollection.findOneAndUpdate(
       { method: 'ldap', username: credential.username },
       { $set: { info: ldapUser }, $setOnInsert: { method: 'ldap', username: credential.username } },

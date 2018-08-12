@@ -50,6 +50,7 @@ class EmailAuth extends BaseAuth {
   async login (credential) {
     this.validateCredential(credential)
 
+    credential.email = credential.email.toLowerCase()
     const user = await this.userCollection.findOne({ email: credential.email, method: 'email' })
     if (!user) throw new Error('User not found')
 
@@ -62,6 +63,7 @@ class EmailAuth extends BaseAuth {
     this.validateCredential(credential)
     let hashedPassword = await bcrypt.hash(credential.password, SALT_WORK_FACTOR)
     try {
+      credential.email = credential.email.toLowerCase()
       let response = await this.userCollection.insertOne({
         method: 'email',
         email: credential.email,
@@ -98,7 +100,7 @@ class EmailAuth extends BaseAuth {
     }
     const user = await this.userCollection.findOneAndUpdate(
       { _id: BSON.ObjectId.createFromHexString(id), verifyCode },
-      { $set: { verified: true }, $unset: { code: true } },
+      { $set: { verified: true }, $unset: { verifyCode: true } },
       { returnOriginal: false })
 
     if (!user.value) throw new Error('User not found')

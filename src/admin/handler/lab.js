@@ -90,4 +90,12 @@ async function deleteLab (req, res, next) {
     next(err)
   }
 }
-module.exports = { labMiddleware, listLab, getLab, createLab, updateLab, deleteLab }
+
+module.exports = {
+  labMiddleware,
+  listLab,
+  getLab,
+  createLab,
+  updateLab,
+  deleteLab
+}
