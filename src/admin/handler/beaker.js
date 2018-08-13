@@ -44,7 +44,6 @@ async function updateBeaker (req, res, next) {
 
 async function deleteBeaker (req, res, next) {
   try {
-    require('mongoose').set('debug', true)
     req.beaker.remove()
     await req.developer.save()
     res.json({ id: req.beaker.id })

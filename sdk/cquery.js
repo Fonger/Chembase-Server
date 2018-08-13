@@ -18,6 +18,7 @@ var utils = require('./utils')
  *
  * @param {Object} [options]
  * @api public
+ * @class
  */
 
 function Query (options) {

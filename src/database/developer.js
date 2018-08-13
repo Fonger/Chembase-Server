@@ -58,6 +58,7 @@ const developerSchema = new Schema({
     description: { type: String },
     beakers: [{
       id: { type: String, required: true, validate: beakerIdValidator },
+      description: { type: String },
       rule: {
         list: { type: String, default: 'true', required: true },
         get: { type: String, default: 'true', required: true },

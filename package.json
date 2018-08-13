@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "server": "nodemon src/index.js",
+    "start": "nodemon src/index.js",
     "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk",
     "database": "mongod --auth --replSet chembase-rs0 --dbpath ~/chembase-data --bind_ip 127.0.0.1 --noscripting",
     "linter": "eslint 'src/**/*.js' 'sdk/**/*.js'",

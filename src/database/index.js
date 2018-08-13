@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient
 const mongoose = require('mongoose')
-const url = 'mongodb://localhost:27017/main?replicaSet=chembase-rs0'
+const url = 'mongodb://localhost:27017/main'
 const mainDBName = 'main'
 const options = {
   auth: {

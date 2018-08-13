@@ -14,8 +14,9 @@ var bson = new BSON()
  * @param {Lab} lab
  * @param {String} beakerId
  * @api public
+ * @class
+ * @augments Query
  */
-
 function Beaker (lab, beakerId) {
   if (!(this instanceof Beaker)) { return new Beaker(lab, beakerId) }
   if (!lab || lab.constructor.name !== 'Lab') { throw new TypeError('Must specify a valid lab') }
