@@ -74,19 +74,20 @@ class EmailAuth extends BaseAuth {
 
       const user = response.ops[0]
 
-      const template = this.emailConfig.template.verify
-      const verifyLink = `https://dummy.com/verify?id=${user._id.toString()}&verifyCode=${user.verifyCode}`
-      /* TODO: email verification */
-      let mailOptions = {
-        from: this.emailConfig.sender,
-        to: credential.email,
-        subject: template.subject,
-        text: template.content.replace('{{VERIFY_LINK}}', verifyLink)
+      if (this.emailConfig.verification) {
+        const template = this.emailConfig.template.verify
+        const verifyLink = `https://dummy.com/verify?id=${user._id.toString()}&verifyCode=${user.verifyCode}`
+        /* TODO: email verification */
+        let mailOptions = {
+          from: this.emailConfig.sender,
+          to: credential.email,
+          subject: template.subject,
+          text: template.content.replace('{{VERIFY_LINK}}', verifyLink)
+        }
+        let info = await this.transporter.sendMail(mailOptions)
+        console.log('Message sent: %s', info.messageId)
+        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info))
       }
-      let info = await this.transporter.sendMail(mailOptions)
-      console.log('Message sent: %s', info.messageId)
-      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info))
-
       return user
     } catch (err) {
       console.error(err)
