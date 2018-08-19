@@ -102,10 +102,21 @@ async function deleteLab (req, res, next) {
   }
 }
 
+async function getLabStats (req, res, next) {
+  try {
+    const data = await req.labInstance.database.stats()
+    data.quotaSize = 1024 * 1024 * 2
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   labMiddleware,
   listLab,
   getLab,
+  getLabStats,
   createLab,
   updateLab,
   deleteLab
