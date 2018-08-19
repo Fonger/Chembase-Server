@@ -1,4 +1,6 @@
 const BSON = require('bson-ext')
+const EJSON = require('mongodb-extjson')
+EJSON.setBSONModule(BSON)
 
 const bsonSerializer = new BSON([
   BSON.Binary,
