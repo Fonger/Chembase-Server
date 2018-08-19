@@ -68,5 +68,13 @@ router.use((error, req, res, next) => {
   res.status(400).json(error)
 })
 
-io.of('/admin').on('connection', socketHandler)
+const adminIO = io.of('/admin')
+adminIO.use(function (socket, next) {
+  if (!socket.handshake.query || !socket.handshake.query.token) return next(new Error('No token'))
+  Developer.findByToken(socket.handshake.query.token).then(developer => {
+    socket.developer = developer
+    next()
+  }).catch(next)
+})
+adminIO.on('connection', socketHandler)
 module.exports = router

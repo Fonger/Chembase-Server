@@ -26,6 +26,7 @@ async function createLab (req, res, next) {
     const developer = await req.developer.save()
     let lab = developer.labs.find(lab => lab.id === req.body.id)
     const labInstance = new Lab(lab, req.developer)
+    await labInstance.database.addUser('chembaseuser', lab.apiKey, { roles: ['readWrite'] })
     lab = lab.toJSON()
     lab.beakers = labInstance.beakerIdlist.map(b => ({ id: b.id }))
     res.json(lab)
@@ -40,9 +41,13 @@ async function updateLab (req, res, next) {
 
     let newEmailAuthConfig = false
     let newLdapAuthConfig = false
+    let newApiKey = false
     if (req.body.name) lab.name = req.body.name
     if (req.body.description) lab.description = req.body.description
-    if (req.body.apiKey === 'new') lab.apiKey = await random.generateHexString(16)
+    if (req.body.apiKey === 'new') {
+      lab.apiKey = await random.generateHexString(16)
+      newApiKey = true
+    }
     if (req.body.allowOrigins) lab.allowOrigins = req.body.allowOrigins
     if (req.body.auth) {
       if (req.body.auth.email) {
@@ -69,6 +74,12 @@ async function updateLab (req, res, next) {
     }
     labInstance.updateAllowedOrigins(lab.allowOrigins)
 
+    if (newApiKey) {
+      await labInstance.database.command({
+        updateUser: 'user',
+        pwd: lab.apiKey
+      })
+    }
     lab = lab.toJSON()
     lab.beakers = lab.beakers.map(beaker => ({ id: beaker.id }))
     res.json(lab)
