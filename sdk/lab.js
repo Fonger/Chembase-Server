@@ -6,7 +6,7 @@ var utils = require('./utils')
 var Lab = function (options) {
   this.sessionId = undefined
   if (typeof options === 'string') options = { labId: options }
-  var socket = io('http://localhost:8080/labs/' + options.labId, {
+  var socket = io('https://chembase.cs.nctu.edu.tw:8080/labs/' + options.labId, {
     query: {
       apiKey: options.apiKey
     },

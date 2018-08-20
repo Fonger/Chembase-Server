@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "nodemon src/index.js",
-    "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk",
+    "sdk": "budo sdk/index.js:chembase-sdk.js --live --dir sdk --ssl --cert ~/chembase-cert.pem --key ~/chembase-key.pem",
     "database": "mongod --auth --replSet chembase-rs0 --dbpath ~/chembase-data --bind_ip 127.0.0.1 --noscripting",
     "linter": "eslint 'src/**/*.js' 'sdk/**/*.js'",
     "test": "npm run linter",
@@ -33,8 +33,7 @@
     "ldapauth-fork": "^4.0.2",
     "mongo-parse": "^2.1.0",
     "mongodb": "^3.1.1",
-    "mongodb-extended-json": "^1.10.0",
-    "mongodb-extjson": "^3.0.3",
+    "mongodb-extjson": "github:Fonger/mongodb-extjson#patch-1",
     "mongoose": "^5.2.5",
     "mongoose-unique-array": "^0.2.0",
     "node-pty": "^0.7.6",
