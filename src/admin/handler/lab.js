@@ -22,12 +22,11 @@ function getLab (req, res, next) {
 
 async function createLab (req, res, next) {
   try {
-    req.developer.labs.push({ ...req.body, apiKey: await random.generateHexString(16) })
+    req.developer.labs.push({ ...req.body, apiKey: await random.generateHexString(16), beakers: [] })
     const developer = await req.developer.save()
-    let lab = developer.labs.find(lab => lab.id === req.body.id)
+    let lab = developer.labs.find(lab => lab.id === req.body.id).toObject()
     const labInstance = new Lab(lab, req.developer)
     await labInstance.database.addUser('chembaseuser', lab.apiKey, { roles: ['readWrite'] })
-    lab = lab.toJSON()
     lab.beakers = labInstance.beakerIdlist.map(b => ({ id: b.id }))
     res.json(lab)
   } catch (err) {
@@ -80,7 +79,7 @@ async function updateLab (req, res, next) {
         pwd: lab.apiKey
       })
     }
-    lab = lab.toJSON()
+    lab = lab.toObject()
     lab.beakers = lab.beakers.map(beaker => ({ id: beaker.id }))
     res.json(lab)
   } catch (err) {
@@ -95,6 +94,7 @@ async function deleteLab (req, res, next) {
     }
 
     req.lab.remove()
+    /* TODO delete underlying database */
     await req.developer.save()
     res.json({ id: req.lab.id })
   } catch (err) {

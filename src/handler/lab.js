@@ -99,27 +99,30 @@ class Lab {
     this.beakerIdlist.splice(this.beakerIdlist.indexOf(rawBeaker.id), 1)
   }
   async ioMiddleware (socket, next) {
-    if (!this.allowOrigins.includes(socket.handshake.headers.origin)) {
-      return next(new Error('lab origin not allowed'))
-    }
-
-    let oldSocketId = socket.handshake.query.oldSocketId
-    if (oldSocketId) {
-      console.log(oldSocketId + ' ===> ' + socket.id)
-      try {
-        let userId = await redis.hget(oldSocketId, 'userId')
-        if (userId) {
-          let user = await this.userCollection.findOne({ _id: BSON.ObjectId.createFromHexString(userId) })
-          if (!user) return next(new Error('user not found'))
-          socket.user = user
-          await redis.rename(oldSocketId, socket.id)
-        }
-      } catch (err) {
-        console.error(err)
-        // ignore the error
+    try {
+      if (!this.allowOrigins.includes(socket.handshake.headers.origin)) {
+        return next(new Error('lab origin not allowed'))
       }
+      let oldSocketId = socket.handshake.query.oldSocketId
+      if (oldSocketId) {
+        console.log(oldSocketId + ' ===> ' + socket.id)
+        try {
+          let userId = await redis.hget(oldSocketId, 'userId')
+          if (userId) {
+            let user = await this.userCollection.findOne({ _id: BSON.ObjectId.createFromHexString(userId) })
+            if (!user) return next(new Error('user not found'))
+            socket.user = user
+            await redis.rename(oldSocketId, socket.id)
+          }
+        } catch (err) {
+          console.error(err)
+        // ignore the error
+        }
+      }
+      next()
+    } catch (err) {
+      next(err)
     }
-    next()
   }
   onConnection (socket) {
     console.log('onConnection! ' + socket.id)

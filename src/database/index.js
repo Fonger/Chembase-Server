@@ -14,6 +14,7 @@ const options = {
 }
 
 mongoose.Promise = Promise
+mongoose.set('useFindAndModify', false)
 
 let _mongoClient
 async function init () {
