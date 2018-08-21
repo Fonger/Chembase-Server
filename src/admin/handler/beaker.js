@@ -19,7 +19,7 @@ async function createBeaker (req, res, next) {
     let beaker = req.body
     lab.beakers.push(beaker)
     await req.developer.save()
-    beaker = lab.beakers.find(b => b.id === beaker.id)
+    beaker = lab.beakers.find(b => b.id === beaker.id).toObject() // convert mongoose to plain object
     req.labInstance.newBeaker(beaker)
     res.json(beaker)
   } catch (err) {
@@ -34,7 +34,7 @@ async function updateBeaker (req, res, next) {
       beaker.rule = { ...beaker.rule.toJSON(), ...req.body.rule }
     }
     await req.developer.save()
-    beaker = req.lab.beakers.find(b => b.id === req.beaker.id)
+    beaker = req.lab.beakers.find(b => b.id === req.beaker.id).toObject() // convert mongoose to plain object
     req.labInstance.updateBeaker(beaker)
     res.json(beaker)
   } catch (err) {

@@ -93,7 +93,6 @@ class Lab {
   }
   updateBeaker (rawBeaker) {
     this.beakers[rawBeaker.id] = rawBeaker
-    this.beakerIdlist.splice(this.beakerIdlist.indexOf(rawBeaker.id), 1, rawBeaker)
   }
   deleteBeaker (rawBeaker) {
     delete this.beaker[rawBeaker.id]
