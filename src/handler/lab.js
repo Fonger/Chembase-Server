@@ -563,6 +563,7 @@ class Lab {
           .map(([k, v]) => ({['fullDocument.' + k]: v})))
         pipeline.push({ $match: lookupCondition })
       }
+
       pipeline.push({
         $project: {
           documentKey: 0,
@@ -591,8 +592,12 @@ class Lab {
         }
 
         delete changeData._id
-        let changeDataRaw = BSON.serialize(changeData)
+        changeData.compound = changeData.fullDocument
+        changeData.type = changeData.operationType === 'insert' ? 'create' : changeData.operationType
+        delete changeData.fullDocument
+        delete changeData.operationType
 
+        let changeDataRaw = BSON.serialize(changeData)
         for (let subscriptionId of changeStream.callbackHandlers.keys()) {
           let callback = changeStream.callbackHandlers.get(subscriptionId)
           if (callback) {
