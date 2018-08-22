@@ -77,12 +77,17 @@ class EmailAuth extends BaseAuth {
       if (this.emailConfig.verification) {
         const template = this.emailConfig.template.verify
         const verifyLink = `https://dummy.com/verify?id=${user._id.toString()}&verifyCode=${user.verifyCode}`
+        const verifyId = user._id.toString()
+        const verifyCode = user.verifyCode
         /* TODO: email verification */
         let mailOptions = {
-          from: this.emailConfig.sender,
+          from: this.emailConfig.smtp.sender,
           to: credential.email,
           subject: template.subject,
-          text: template.content.replace('{{VERIFY_LINK}}', verifyLink)
+          text: template.content
+            .replace('{{VERIFY_LINK}}', verifyLink)
+            .replace('{{VERIFY_ID}}', verifyId)
+            .replace('{{VERIFY_CODE}}', verifyCode)
         }
         let info = await this.transporter.sendMail(mailOptions)
         console.log('Message sent: %s', info.messageId)
