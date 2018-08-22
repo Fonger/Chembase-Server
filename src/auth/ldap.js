@@ -90,7 +90,7 @@ class LdapAuth extends BaseAuth {
     }
     // username is already sanitized in module
     if (typeof credential.username !== 'string') {
-      throw new TypeError('Invalid email')
+      throw new TypeError('Invalid username')
     }
     if (typeof credential.password !== 'string') {
       throw new TypeError('Invalid password')
