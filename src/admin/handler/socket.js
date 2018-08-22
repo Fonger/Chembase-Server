@@ -3,7 +3,7 @@ const path = require('path')
 
 module.exports = function (socket) {
   socket.on('shell-start', function (data) {
-    const term = pty.spawn('/usr/bin/mongo', ['-u', 'user', '-p', data.apiKey, '--quiet', '--authenticationDatabase', data.labId], {
+    const term = pty.spawn('/usr/bin/mongo', ['-u', 'chembaseuser', '-p', data.apiKey, '--quiet', '--authenticationDatabase', data.labId], {
       name: 'xterm-256color',
       cols: 80,
       rows: 30,
