@@ -660,12 +660,12 @@ class Lab {
       cb(err)
     }
   }
-  cleanUp () {
+  async cleanUp () {
     if (this.emailAuth) this.emailAuth.transporter.close()
     if (this.ldapAuth) this.ldapAuth.ldap.close()
-    /* TODO: revoke access role */
-    // this.database.dropDatabase()
     console.log('cleaning up database...')
+    await this.database.removeUser('chembaseuser')
+    await this.database.dropDatabase()
   }
 }
 

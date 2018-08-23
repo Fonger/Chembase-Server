@@ -90,7 +90,7 @@ async function updateLab (req, res, next) {
 async function deleteLab (req, res, next) {
   try {
     if (req.labInstance) {
-      req.labInstance.cleanUp()
+      await req.labInstance.cleanUp()
     }
 
     req.lab.remove()
