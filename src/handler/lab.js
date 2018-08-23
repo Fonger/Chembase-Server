@@ -319,7 +319,7 @@ class Lab {
       query.conditions = parsedConditions
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
-      let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
+      let passACL = await ruleRunner.run({ request: { user: socket.user, socketId: socket.id } }, query)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -360,7 +360,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.get)
-      let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
+      let passACL = await ruleRunner.run({ compound, request: { user: socket.user, socketId: socket.id } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -395,7 +395,8 @@ class Lab {
         compound,
         request: {
           user: socket.user,
-          compound: { ...compound, ...CompoundUtils.dotNotationToObject(newSetData) }
+          compound: { ...compound, ...CompoundUtils.dotNotationToObject(newSetData) },
+          socketId: socket.id
         }
       }
 
@@ -450,7 +451,7 @@ class Lab {
 
       /* TODO: rule validation */
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.delete)
-      let passACL = await ruleRunner.run({ compound, request: { user: socket.user } })
+      let passACL = await ruleRunner.run({ compound, request: { user: socket.user, socketId: socket.id } })
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -492,7 +493,7 @@ class Lab {
       query.conditions = parsedConditions
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
-      let passACL = await ruleRunner.run({ request: { user: socket.user } }, query)
+      let passACL = await ruleRunner.run({ request: { user: socket.user, socketId: socket.id } }, query)
       if (!passACL) {
         throw new Error('Access denined')
       }
