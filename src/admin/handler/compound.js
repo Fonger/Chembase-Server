@@ -8,10 +8,14 @@ function compoundMiddleware (req, res, next) {
 
 function listCompounds (req, res, next) {
   let conditions = {}
-  if (req.body._conditions) {
-    conditions = EJSON.parse(req.body._conditions)
+  let options = null
+  if (req.body.conditions) {
+    conditions = EJSON.parse(req.body.conditions)
   }
-  req.collection.find(conditions, req.options || null).toArray().then(compounds => {
+  if (req.body.options) {
+    options = JSON.parse(req.body.options)
+  }
+  req.collection.find(conditions, options).toArray().then(compounds => {
     res.json({ compounds: EJSON.stringify(compounds, {relaxed: true}) })
   }).catch(next)
 }

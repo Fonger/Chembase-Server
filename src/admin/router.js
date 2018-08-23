@@ -62,6 +62,7 @@ router.delete('/labs/:labId/beakers/:beakerId', deleteBeaker)
 /* req.collection */
 router.use('/labs/:labId/beakers/:beakerId/compounds', compoundMiddleware)
 router.get('/labs/:labId/beakers/:beakerId/compounds', listCompounds)
+router.post('/labs/:labId/beakers/:beakerId/compounds/query', listCompounds)
 router.post('/labs/:labId/beakers/:beakerId/compounds', createCompound)
 router.patch('/labs/:labId/beakers/:beakerId/compounds/:compoundId', updateCompound)
 router.delete('/labs/:labId/beakers/:beakerId/compounds/:compoundId', deleteCompound)
