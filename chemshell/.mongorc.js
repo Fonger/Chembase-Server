@@ -16,7 +16,7 @@
   })
 })(this);
 
-lab = db = db.getSiblingDB('testdb');
+lab = db = db.getSiblingDB(decodeURI(labId));
 lab.getBeaker = lab.getCollection;
 lab.getSiblingLab = lab.getSiblingDB;
 CompoundId = ObjectId;

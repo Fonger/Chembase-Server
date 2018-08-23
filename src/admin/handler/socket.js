@@ -5,7 +5,13 @@ const mongoPath = process.platform === 'darwin'
 
 module.exports = function (socket) {
   socket.on('shell-start', function (data) {
-    const term = pty.spawn(mongoPath, ['-u', 'chembaseuser', '-p', data.apiKey, '--quiet', '--authenticationDatabase', data.labId], {
+    const term = pty.spawn(mongoPath, [
+      '-u', 'chembaseuser',
+      '-p', data.apiKey,
+      '--quiet',
+      '--eval', `labId="${encodeURI(data.labId)}"`,
+      '--shell',
+      '--authenticationDatabase', data.labId], {
       name: 'xterm-256color',
       cols: 80,
       rows: 30,
