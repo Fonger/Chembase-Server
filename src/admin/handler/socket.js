@@ -1,9 +1,11 @@
 const pty = require('node-pty')
 const path = require('path')
+const mongoPath = process.platform === 'darwin'
+  ? '/usr/local/bin/mongo' : '/usr/bin/mongo'
 
 module.exports = function (socket) {
   socket.on('shell-start', function (data) {
-    const term = pty.spawn('/usr/bin/mongo', ['-u', 'chembaseuser', '-p', data.apiKey, '--quiet', '--authenticationDatabase', data.labId], {
+    const term = pty.spawn(mongoPath, ['-u', 'chembaseuser', '-p', data.apiKey, '--quiet', '--authenticationDatabase', data.labId], {
       name: 'xterm-256color',
       cols: 80,
       rows: 30,
