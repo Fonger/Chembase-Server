@@ -21,23 +21,38 @@ function listCompounds (req, res, next) {
 }
 
 function createCompound (req, res, next) {
-  const compound = EJSON.parse(req.body.compound)
+  // if it's called from updateCompound with _id NEW, don't parse it again
+  let compound = req.fromNewUpdateCompound ? req.fromNewUpdateCompound : EJSON.parse(req.body.compound)
+
   req.collection.insertOne(compound, req.body.options || null).then(response => {
     if (response.result.n === 0) {
       throw new Error('Create compound failed. Write conflict?')
     }
-    res.json({ compounds: EJSON.stringify(response.ops[0], {relaxed: true}) })
+    const newCompound = response.ops[0]
+    if (req.fromNewUpdateCompound) {
+      newCompound.__generatedFromNewId = req.params.compoundId
+    }
+    res.json({ compound: EJSON.stringify(newCompound, { relaxed: true }) })
   }).catch(next)
 }
 
 function updateCompound (req, res, next) {
-  const _id = BSON.ObjectId.createFromHexString(req.params.compoundId)
   const update = EJSON.parse(req.body.update)
+  if (req.params.compoundId.indexOf('NEW') === 0) {
+    if (update.$set) {
+      req.fromNewUpdateCompound = update.$set
+      return createCompound(req, res, next)
+    } else {
+      throw new Error('When compoundId equals to "NEW", you must specify $set operator')
+    }
+  }
+
+  const _id = BSON.ObjectId.createFromHexString(req.params.compoundId)
+  const options = req.body.options || {}
 
   if (!update.$inc) update.$inc = {}
   update.$inc.__version = 1
 
-  const options = req.body.options || {}
   if (!('returnOriginal' in options)) options.returnOriginal = false
 
   req.collection.findOneAndUpdate({ _id }, update, options).then(result => {
