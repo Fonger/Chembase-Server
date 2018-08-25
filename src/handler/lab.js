@@ -284,6 +284,7 @@ class Lab {
       let collection = this.database.collection(request.beakerId)
       let compound = BSON.deserialize(Buffer.from(request.data))
 
+      compound.__version = 0
       CompoundUtils.validateObject(compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.create)
       let passACL = await ruleRunner.run({ request: { compound, user: socket.user } })
@@ -401,6 +402,13 @@ class Lab {
         if (!txnSession) throw new Error('Invalid txnSessionId')
         options.session = txnSession
       }
+
+      if ('fields' in options) { // fields are deprecated
+        options.projection = options.fields
+        delete options.fields
+      }
+      if (typeof options.projection !== 'object') options.projection = {}
+      options.projection.__old = 0 // exclude __old from result
 
       let compound = await collection.findOne(queryById, options)
       if (!compound) throw new Error('Compound does not exist')

@@ -57,7 +57,7 @@ function updateCompound (req, res, next) {
   if (!('returnOriginal' in options)) options.returnOriginal = false
   if (!('$set' in update)) update.$set = {}
 
-  req.collection.findOne({ _id }).then(oldDocument => {
+  req.collection.findOne({ _id }, { projection: { __old: 0 } }).then(oldDocument => {
     update.$set.__old = oldDocument
     return req.collection
       .findOneAndUpdate({ _id, __version: oldDocument.__version }, update, options).then(result => {
