@@ -7,6 +7,7 @@ const CompoundUtils = require('../utils/compound-utils')
 const { EmailAuth, LdapAuth } = require('../auth')
 const server = require('./server')
 const isPlainObject = require('is-plain-object')
+const EJSON = require('mongodb-extjson')
 
 require('../utils/errorjson')
 
@@ -578,7 +579,7 @@ class Lab {
     }
   }
   getChangeStream (beakerId, condition) {
-    const key = beakerId + JSON.stringify(condition)
+    const key = beakerId + EJSON.stringify(condition)
     let changeStreamGroup = this.changeStreamGroups.get(key)
 
     if (!changeStreamGroup) {
