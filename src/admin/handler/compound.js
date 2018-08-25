@@ -23,6 +23,7 @@ function listCompounds (req, res, next) {
 function createCompound (req, res, next) {
   // if it's called from updateCompound with _id NEW, don't parse it again
   let compound = req.fromNewUpdateCompound ? req.fromNewUpdateCompound : EJSON.parse(req.body.compound)
+  compound.__version = 0
 
   req.collection.insertOne(compound, req.body.options || null).then(response => {
     if (response.result.n === 0) {
@@ -54,10 +55,15 @@ function updateCompound (req, res, next) {
   update.$inc.__version = 1
 
   if (!('returnOriginal' in options)) options.returnOriginal = false
+  if (!('$set' in update)) update.$set = {}
 
-  req.collection.findOneAndUpdate({ _id }, update, options).then(result => {
-    if (!result.value) throw new Error('Compound not found')
-    res.json({ compound: EJSON.stringify(result.value, {relaxed: true}) })
+  req.collection.findOne({ _id }).then(oldDocument => {
+    update.$set.__old = oldDocument
+    return req.collection
+      .findOneAndUpdate({ _id, __version: oldDocument.__version }, update, options).then(result => {
+        if (!result.value) throw new Error('Compound not found or have write conflict')
+        res.json({ compound: EJSON.stringify(result.value, {relaxed: true}) })
+      })
   }).catch(next)
 }
 

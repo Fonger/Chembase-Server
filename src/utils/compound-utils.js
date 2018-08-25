@@ -1,6 +1,7 @@
 const isPlainObject = require('is-plain-object')
 const forbiddenFieldNames = ['constructor', '__proto__', 'prototype']
 const cloneDeep = require('clone-deep')
+const forbiddenSetFieldNames = ['__old', '__version']
 
 module.exports = {
   dotNotationToObject: function (baseDocument, setNewDocument) {
@@ -8,6 +9,10 @@ module.exports = {
     for (let [path, value] of Object.entries(setNewDocument)) {
       let keys = path.split('.')
       let lastKey = keys.pop()
+
+      if (forbiddenSetFieldNames.includes[keys[0]]) {
+        throw new Error(`Cannot use ${keys[0]} as field name`)
+      }
 
       let parent = baseDocument
       for (let key of keys) {
@@ -20,7 +25,7 @@ module.exports = {
     }
     return baseDocument
   },
-  validateObject: function (document) {
+  validateObject: function validateObject (document) {
     Object.keys(document).forEach(function (key) {
       if (key[0] === '$') {
         throw new Error("Field names can't start with $")
@@ -29,7 +34,7 @@ module.exports = {
       } else if (forbiddenFieldNames.includes(key)) {
         throw new Error(`Cannot use ${key} as field name`)
       } else if (isPlainObject(document[key])) {
-        return this.validateObject(document[key])
+        return validateObject(document[key])
       } else {
         return document
       }

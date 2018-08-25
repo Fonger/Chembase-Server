@@ -6,7 +6,7 @@ const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
 const { EmailAuth, LdapAuth } = require('../auth')
 const server = require('./server')
-const cloneDeep = require('clone-deep')
+const isPlainObject = require('is-plain-object')
 
 require('../utils/errorjson')
 
@@ -66,7 +66,7 @@ class Lab {
       this.newBeaker(beaker)
     })
 
-    this.changeStreams = new Map()
+    this.changeStreamGroups = new Map()
     globalLabMap.set(this.id, this)
   }
   setupEmailAuth (config) {
@@ -166,9 +166,9 @@ class Lab {
     }
     if (socket.listeningChangeStreamMap) {
       for (let subscriptionId of socket.listeningChangeStreamMap.keys()) {
-        let changeStream = socket.listeningChangeStreamMap.get(subscriptionId)
-        if (changeStream && changeStream.callbackHandlers) {
-          changeStream.callbackHandlers.delete(subscriptionId)
+        let changeStreamGroup = socket.listeningChangeStreamMap.get(subscriptionId)
+        if (changeStreamGroup && changeStreamGroup.callbackHandlers) {
+          changeStreamGroup.callbackHandlers.delete(subscriptionId)
         }
       }
     }
@@ -334,6 +334,13 @@ class Lab {
         options.session = txnSession
       }
 
+      if ('fields' in options) { // fields are deprecated
+        options.projection = options.fields
+        delete options.fields
+      }
+      if (typeof options.projection !== 'object') options.projection = {}
+      options.projection.__old = 0 // exclude __old from result
+
       let result = await collection.find(parsedConditions, options).toArray()
 
       cb(null, {
@@ -354,6 +361,13 @@ class Lab {
         if (!txnSession) throw new Error('Invalid txnSessionId')
         options.session = txnSession
       }
+
+      if ('fields' in options) { // fields are deprecated
+        options.projection = options.fields
+        delete options.fields
+      }
+      if (typeof options.projection !== 'object') options.projection = {}
+      options.projection.__old = 0 // exclude __old from result
 
       let compound = await collection.findOne(
         { _id: BSON.ObjectId.createFromHexString(request._id) }, options
@@ -392,6 +406,7 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       const newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
+
       const newCompound = CompoundUtils.dotNotationToObject(compound, newSetData)
       CompoundUtils.validateObject(newCompound)
 
@@ -412,7 +427,7 @@ class Lab {
       /* TODO: rule validation & replace option */
 
       let update = {
-        $set: newSetData
+        $set: { ...newSetData, __old: compound }
       }
 
       if (typeof compound.__version === 'number') {
@@ -500,7 +515,7 @@ class Lab {
         throw new Error('Access denined')
       }
 
-      const changeStream = this.getChangeStream(
+      const changeStreamGroup = this.getChangeStream(
         query.beakerId,
         query.conditions
       )
@@ -508,16 +523,16 @@ class Lab {
         socket.listeningChangeStreamMap = new Map()
       }
 
-      const subscriptionId = changeStream.uniqueCounter
-        ? ++changeStream.uniqueCounter
+      const subscriptionId = changeStreamGroup.uniqueCounter
+        ? ++changeStreamGroup.uniqueCounter
         : 0
 
       const handler = (err, changeData) => {
         socket.emit('change' + subscriptionId, err, changeData)
       }
 
-      socket.listeningChangeStreamMap.set(subscriptionId, changeStream)
-      changeStream.callbackHandlers.set(subscriptionId, handler)
+      socket.listeningChangeStreamMap.set(subscriptionId, changeStreamGroup)
+      changeStreamGroup.callbackHandlers.set(subscriptionId, handler)
 
       cb(null, {
         data: {
@@ -556,9 +571,9 @@ class Lab {
   }
   getChangeStream (beakerId, condition) {
     const key = beakerId + JSON.stringify(condition)
-    let changeStream = this.changeStreams.get(key)
+    let changeStreamGroup = this.changeStreamGroups.get(key)
 
-    if (!changeStream) {
+    if (!changeStreamGroup) {
       const entries = Object.entries(condition)
       const pipeline = []
       if (entries.length > 0) {
@@ -566,7 +581,6 @@ class Lab {
           .map(([k, v]) => ({['fullDocument.' + k]: v})))
         pipeline.push({ $match: lookupCondition })
       }
-
       pipeline.push({
         $project: {
           documentKey: 0,
@@ -578,52 +592,99 @@ class Lab {
         fullDocument: 'updateLookup'
       }
 
-      changeStream = this.database
-        .collection(beakerId)
-        .watch(pipeline, options)
+      changeStreamGroup = [
+        this.database
+          .collection(beakerId)
+          .watch(pipeline, options)
+      ]
 
-      changeStream.callbackHandlers = new Map()
-      this.changeStreams.set(key, changeStream)
+      if (entries.length > 0 &&
+          !(entries.length === 1 && entries[0][0] === '_id')) {
+        const lookupCondition = Object.assign({
+          operationType: 'update'
+        },
+        ...entries.map(([k, v]) => {
+          if (typeof v === 'object') {
+            if (isPlainObject(v)) {
+              if (!Object.keys(v).every(k => k.startsWith('$'))) {
+                v = { $eq: v }
+              }
+            } else {
+              v = { $eq: v }
+            }
+          } else {
+            v = { $eq: v }
+          }
+          return {['fullDocument.' + k]: { $not: v }}
+        }),
+        ...entries.map(([k, v]) => ({['fullDocument.__old.' + k]: v})))
 
-      changeStream.on('change', changeData => {
-        if (
-          changeData.operationType === 'update' &&
+        const negativePipeline = [
+          {
+            $match: lookupCondition
+          },
+          {
+            $project: {
+              operationType: 'delete',
+              documentKey: 1,
+              fullDocument: {
+                _id: '$documentKey._id'
+              }
+            }
+          }
+        ]
+
+        changeStreamGroup.push(
+          this.database
+            .collection(beakerId)
+            .watch(negativePipeline, options)
+        )
+      }
+
+      changeStreamGroup.callbackHandlers = new Map()
+      this.changeStreamGroups.set(key, changeStreamGroup)
+
+      for (let i = 0; i < changeStreamGroup.length; i++) {
+        changeStreamGroup[i].on('change', changeData => {
+          if (
+            changeData.operationType === 'update' &&
           changeData.updateDescription.removedFields.length === 0
-        ) {
-          let fields = Object.keys(changeData.updateDescription.updatedFields)
-          if (fields.length === 1 && fields[0] === '__version') return
-        }
-
-        delete changeData._id
-        changeData.compound = changeData.fullDocument
-        changeData.type = changeData.operationType === 'insert' ? 'create' : changeData.operationType
-        delete changeData.fullDocument
-        delete changeData.operationType
-
-        let changeDataRaw = BSON.serialize(changeData)
-        for (let subscriptionId of changeStream.callbackHandlers.keys()) {
-          let callback = changeStream.callbackHandlers.get(subscriptionId)
-          if (callback) {
-            setImmediate(() => callback(null, changeDataRaw))
+          ) {
+            let fields = Object.keys(changeData.updateDescription.updatedFields)
+            if (fields.length === 1 && fields[0] === '__version') return
           }
-        }
-      })
-      changeStream.on('error', err => {
-        console.error('ChangeStream Error', err)
-        for (let subscriptionId of changeStream.callbackHandlers.keys()) {
-          let callback = changeStream.callbackHandlers.get(subscriptionId)
-          if (callback) {
-            setImmediate(() => callback(err))
+
+          delete changeData._id
+          changeData.compound = changeData.fullDocument
+          changeData.type = changeData.operationType === 'insert' ? 'create' : changeData.operationType
+          delete changeData.fullDocument
+          delete changeData.operationType
+
+          let changeDataRaw = BSON.serialize(changeData)
+          for (let subscriptionId of changeStreamGroup.callbackHandlers.keys()) {
+            let callback = changeStreamGroup.callbackHandlers.get(subscriptionId)
+            if (callback) {
+              setImmediate(() => callback(null, changeDataRaw))
+            }
           }
-        }
-      })
-      changeStream.on('close', () => {
-        changeStream.callbackHandlers.clear()
-        this.changeStreams.delete(key)
-      })
-      // changeStream.setMaxListeners(1000);
+        })
+        changeStreamGroup[i].on('error', err => {
+          console.error('ChangeStreamGroup Error', err)
+          for (let subscriptionId of changeStreamGroup.callbackHandlers.keys()) {
+            let callback = changeStreamGroup.callbackHandlers.get(subscriptionId)
+            if (callback) {
+              setImmediate(() => callback(err))
+            }
+          }
+        })
+        changeStreamGroup[i].on('close', () => {
+          changeStreamGroup.callbackHandlers.clear()
+          this.changeStreamGroups.delete(key)
+        })
+      // changeStreamGroup[i].setMaxListeners(1000);
+      }
     }
-    return changeStream
+    return changeStreamGroup
   }
   startTransaction (socket, request, cb) {
     try {
