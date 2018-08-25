@@ -1,14 +1,15 @@
 const isPlainObject = require('is-plain-object')
 const forbiddenFieldNames = ['constructor', '__proto__', 'prototype']
+const cloneDeep = require('clone-deep')
 
 module.exports = {
-  dotNotationToObject: function toObj (obj) {
-    let output = {}
-    for (let [path, value] of Object.entries(obj)) {
+  dotNotationToObject: function (baseDocument, setNewDocument) {
+    baseDocument = cloneDeep(baseDocument)
+    for (let [path, value] of Object.entries(setNewDocument)) {
       let keys = path.split('.')
       let lastKey = keys.pop()
 
-      let parent = output
+      let parent = baseDocument
       for (let key of keys) {
         if (typeof parent[key] === 'undefined') parent[key] = {}
 
@@ -17,7 +18,7 @@ module.exports = {
       }
       parent[lastKey] = value
     }
-    return output
+    return baseDocument
   },
   validateObject: function (document) {
     Object.keys(document).forEach(function (key) {

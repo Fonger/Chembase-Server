@@ -24,6 +24,7 @@
     "bson-ext": "^2.0.1",
     "bson-fast-deep-equal": "github:Fonger/bson-fast-deep-equal",
     "buffer": "^5.2.0",
+    "clone-deep": "^4.0.0",
     "cors": "^2.8.4",
     "express": "^4.16.3",
     "ioredis": "^3.2.2",

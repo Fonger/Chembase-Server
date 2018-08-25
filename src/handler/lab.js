@@ -6,6 +6,7 @@ const RuleRunner = require('../rules/rule-runner')
 const CompoundUtils = require('../utils/compound-utils')
 const { EmailAuth, LdapAuth } = require('../auth')
 const server = require('./server')
+const cloneDeep = require('clone-deep')
 
 require('../utils/errorjson')
 
@@ -390,17 +391,18 @@ class Lab {
       let compound = await collection.findOne(queryById, options)
       if (!compound) throw new Error('Compound does not exist')
 
-      let newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
-      let context = {
+      const newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
+      const newCompound = CompoundUtils.dotNotationToObject(compound, newSetData)
+      CompoundUtils.validateObject(newCompound)
+
+      const context = {
         compound,
         request: {
           user: socket.user,
-          compound: { ...compound, ...CompoundUtils.dotNotationToObject(newSetData) },
+          compound: newCompound,
           socketId: socket.id
         }
       }
-
-      CompoundUtils.validateObject(context.request.compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.update)
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
