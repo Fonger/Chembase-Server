@@ -7,10 +7,10 @@ function compoundMiddleware (req, res, next) {
 }
 
 function listCompounds (req, res, next) {
-  let conditions = {}
+  let conditions = { __version: { $ne: -1 } }
   let options = null
   if (req.body.conditions) {
-    conditions = EJSON.parse(req.body.conditions)
+    conditions = { conditions, ...EJSON.parse(req.body.conditions) }
   }
   if (req.body.options) {
     options = JSON.parse(req.body.options)
@@ -55,9 +55,13 @@ function updateCompound (req, res, next) {
   update.$inc.__version = 1
 
   if (!('returnOriginal' in options)) options.returnOriginal = false
-  if (!('$set' in update)) update.$set = {}
+  if ('$set' in update) {
+    delete update.$set.__version
+  } else {
+    update.$set = {}
+  }
 
-  req.collection.findOne({ _id }, { projection: { __old: 0 } }).then(oldDocument => {
+  req.collection.findOne({ _id, __version: { $ne: -1 } }, { projection: { __old: 0 } }).then(oldDocument => {
     update.$set.__old = oldDocument
     return req.collection
       .findOneAndUpdate({ _id, __version: oldDocument.__version }, update, options).then(result => {
@@ -69,8 +73,13 @@ function updateCompound (req, res, next) {
 
 function deleteCompound (req, res, next) {
   const _id = BSON.ObjectId.createFromHexString(req.params.compoundId)
-  req.collection.deleteOne({ _id }, req.body.options || null).then(result => {
-    if (result.n === 0) throw new Error('Compound not found')
+
+  // soft delete
+  return req.collection.updateOne({ _id }, { $set: { __version: -1 } }, req.body.options || null).then(response => {
+    if (response.result.n === 0) {
+      throw new Error('Compound does not exist')
+    }
+    // req.collection.deleteOne({ _id }, req.body.options || null).then(response => {}, console.error)
     res.json({ compound: EJSON.stringify({ _id }) })
   }).catch(next)
 }

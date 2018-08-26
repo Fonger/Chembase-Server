@@ -319,7 +319,7 @@ class Lab {
       this.checkRequest(query)
 
       const parsedConditions = BSON.deserialize(Buffer.from(query.conditions))
-      query.conditions = parsedConditions
+      query.conditions = { ...parsedConditions, __version: { $ne: -1 } }
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
       let passACL = await ruleRunner.run({ request: { user: socket.user, socketId: socket.id } }, query)
@@ -343,7 +343,7 @@ class Lab {
       if (typeof options.projection !== 'object') options.projection = {}
       options.projection.__old = 0 // exclude __old from result
 
-      let result = await collection.find(parsedConditions, options).toArray()
+      let result = await collection.find(query.conditions, options).toArray()
 
       cb(null, {
         data: result
@@ -372,7 +372,7 @@ class Lab {
       options.projection.__old = 0 // exclude __old from result
 
       let compound = await collection.findOne(
-        { _id: BSON.ObjectId.createFromHexString(request._id) }, options
+        { _id: BSON.ObjectId.createFromHexString(request._id), __version: { $ne: -1 } }, options
       )
       if (!compound) throw new Error('Compound does not exist')
 
@@ -395,7 +395,7 @@ class Lab {
     try {
       this.checkRequest(request)
       let collection = this.database.collection(request.beakerId)
-      let queryById = { _id: BSON.ObjectId.createFromHexString(request._id) }
+      let queryById = { _id: BSON.ObjectId.createFromHexString(request._id), __version: { $ne: -1 } }
 
       let options = {}
       if (request.txnSessionId) {
@@ -486,10 +486,15 @@ class Lab {
         queryById.__version = compound.__version
       }
 
-      let response = await collection.deleteOne(queryById, options)
+      // soft delete
+      let response = await collection.updateOne(queryById, { $set: { __version: -1 } }, options)
       if (response.result.n === 0) {
         throw new Error('Compound does not exist or have write conflict')
       }
+
+      // delete (can fail)
+      collection.deleteOne(queryById, options).then((response) => {}, console.error)
+
       cb(null, {
         data: { ok: true }
       })
@@ -604,20 +609,40 @@ class Lab {
           },
           {
             $match: {
-              updateDescription: {
-                $ne: {
-                  updatedFields: {},
-                  removedFields: []
+              $or: [
+                {
+                  updateDescription: {
+                    $ne: {
+                      updatedFields: {},
+                      removedFields: []
+                    }
+                  }
+                },
+                {
+                  'fullDocument.__version': {
+                    $eq: -1
+                  }
                 }
-              }
+              ]
             }
           },
           {
             $project: {
               type: {
-                $cond: { if: { $eq: [ '$operationType', 'insert' ] }, then: 'create', else: '$operationType' }
+                $cond: {
+                  if: { $eq: [ '$operationType', 'insert' ] },
+                  then: 'create',
+                  else: {
+                    $cond: {
+                      if: { $eq: [ '$fullDocument.__version', -1 ] },
+                      then: 'delete',
+                      else: '$operationType'
+                    }
+                  }
+                }
               },
-              compound: '$fullDocument'
+              compound: '$fullDocument',
+              updateDescription: 1
             }
           }
         ]
