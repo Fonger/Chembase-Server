@@ -584,19 +584,45 @@ class Lab {
 
     if (!changeStreamGroup) {
       const entries = Object.entries(condition)
-      const pipeline = []
+      let pipeline = []
       if (entries.length > 0) {
-        const lookupCondition = Object.assign(...entries
+        const lookupCondition = Object.assign({}, ...entries
           .map(([k, v]) => ({['fullDocument.' + k]: v})))
-        pipeline.push({ $match: lookupCondition })
+        pipeline = [
+          {
+            $match: lookupCondition
+          },
+          {
+            $project: {
+              'updateDescription.updatedFields.__version': 0,
+              'updateDescription.updatedFields.__old': 0,
+              'fullDocument.__old': 0,
+              documentKey: 0,
+              ns: 0,
+              clusterTime: 0
+            }
+          },
+          {
+            $match: {
+              updateDescription: {
+                $ne: {
+                  updatedFields: {},
+                  removedFields: []
+                }
+              }
+            }
+          },
+          {
+            $project: {
+              type: {
+                $cond: { if: { $eq: [ '$operationType', 'insert' ] }, then: 'create', else: '$operationType' }
+              },
+              compound: '$fullDocument'
+            }
+          }
+        ]
       }
-      pipeline.push({
-        $project: {
-          documentKey: 0,
-          ns: 0,
-          clusterTime: 0
-        }
-      })
+
       const options = {
         fullDocument: 'updateLookup'
       }
@@ -634,9 +660,8 @@ class Lab {
           },
           {
             $project: {
-              operationType: 'delete',
-              documentKey: 1,
-              fullDocument: {
+              type: 'delete',
+              compound: {
                 _id: '$documentKey._id'
               }
             }
@@ -655,20 +680,6 @@ class Lab {
 
       for (let i = 0; i < changeStreamGroup.length; i++) {
         changeStreamGroup[i].on('change', changeData => {
-          if (
-            changeData.operationType === 'update' &&
-          changeData.updateDescription.removedFields.length === 0
-          ) {
-            let fields = Object.keys(changeData.updateDescription.updatedFields)
-            if (fields.length === 1 && fields[0] === '__version') return
-          }
-
-          delete changeData._id
-          changeData.compound = changeData.fullDocument
-          changeData.type = changeData.operationType === 'insert' ? 'create' : changeData.operationType
-          delete changeData.fullDocument
-          delete changeData.operationType
-
           let changeDataRaw = BSON.serialize(changeData)
           for (let subscriptionId of changeStreamGroup.callbackHandlers.keys()) {
             let callback = changeStreamGroup.callbackHandlers.get(subscriptionId)
