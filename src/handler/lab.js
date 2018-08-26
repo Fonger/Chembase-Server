@@ -415,8 +415,12 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       const newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
-
-      const newCompound = CompoundUtils.dotNotationToObject(compound, newSetData)
+      let noOperation = false
+      let newCompound = CompoundUtils.dotNotationToObject(compound, newSetData)
+      if (!newCompound) {
+        noOperation = true
+        newCompound = compound
+      }
       CompoundUtils.validateObject(newCompound)
 
       const context = {
@@ -433,25 +437,28 @@ class Lab {
         throw new Error('Access denined')
       }
 
-      /* TODO: rule validation & replace option */
-
-      let update = {
-        $set: { ...newSetData, __old: compound }
-      }
-
-      if (typeof compound.__version === 'number') {
-        queryById.__version = compound.__version
-        update.$inc = { __version: 1 }
+      /* TODO: replace option */
+      let response
+      if (noOperation) {
+        response = { result: { noOp: true } }
       } else {
-        update.$set.__version = 0
+        let update = {
+          $set: { ...newSetData, __old: compound }
+        }
+
+        if (typeof compound.__version === 'number') {
+          queryById.__version = compound.__version
+          update.$inc = { __version: 1 }
+        } else {
+          update.$set.__version = 0
+        }
+
+        response = await collection.updateOne(queryById, update, options)
+
+        if (response.result.n === 0) {
+          throw new Error('Compound does not exist or have write conflict')
+        }
       }
-
-      let response = await collection.updateOne(queryById, update, options)
-
-      if (response.result.n === 0) {
-        throw new Error('Compound does not exist or have write conflict')
-      }
-
       cb(null, {
         data: { ok: true, result: response.result }
       })

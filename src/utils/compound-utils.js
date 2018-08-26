@@ -2,10 +2,12 @@ const isPlainObject = require('is-plain-object')
 const forbiddenFieldNames = ['constructor', '__proto__', 'prototype']
 const cloneDeep = require('clone-deep')
 const forbiddenSetFieldNames = ['__old', '__version']
+const deepEqual = require('bson-fast-deep-equal')
 
 module.exports = {
   dotNotationToObject: function (baseDocument, setNewDocument) {
     baseDocument = cloneDeep(baseDocument)
+    let noOperation = true
     for (let [path, value] of Object.entries(setNewDocument)) {
       let keys = path.split('.')
       let lastKey = keys.pop()
@@ -21,9 +23,12 @@ module.exports = {
         if (isPlainObject(parent[key])) parent = parent[key]
         else throw new Error('It contains redefined path')
       }
-      parent[lastKey] = value
+      if (!noOperation || !deepEqual(parent[lastKey], value)) {
+        parent[lastKey] = value
+        noOperation = false
+      }
     }
-    return baseDocument
+    return noOperation ? null : baseDocument
   },
   validateObject: function validateObject (document) {
     Object.keys(document).forEach(function (key) {
