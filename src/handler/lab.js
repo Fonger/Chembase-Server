@@ -342,7 +342,8 @@ class Lab {
       const context = {
         request: {
           user: socket.user,
-          socketId: socket.id
+          socketId: socket.id,
+          conditions: parsedConditions
         },
         get: this.ruleContextGet.bind(this)
       }
@@ -575,7 +576,8 @@ class Lab {
       const context = {
         request: {
           user: socket.user,
-          socketId: socket.id
+          socketId: socket.id,
+          conditions: parsedConditions
         },
         get: this.ruleContextGet.bind(this)
       }
