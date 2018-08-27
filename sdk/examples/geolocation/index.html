@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Chembase Geolocation Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ=="
+    crossorigin="" />
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+    crossorigin="anonymous">
+  <script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js" integrity="sha512-tAGcCfR4Sc5ZP5ZoVz0quoZDYX5aCtEm/eu1KhSLj2c9eFrylXZknQYmxUssFaVJKvvc0dJQixhGjG2yXWiV9Q=="
+    crossorigin=""></script>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+    crossorigin="anonymous"></script>
+  <script src="https://chembase.cs.nctu.edu.tw:8080/socket.io/socket.io.js"></script>
+  <script src="https://chembase.cs.nctu.edu.tw:9966/chembase-sdk.js"></script>
+  <style>
+    #mapid {
+      height: 100vh;
+      z-index: 0;
+    }
+
+    #chatbox {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 600px;
+      height: 100%;
+      z-index: 999;
+      background-color: rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    #chatbox form {
+      pointer-events: all;
+      padding-left: 15px;
+      padding-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="chatbox" class="contianer">
+    <div class="row">
+      <div class="col">
+        <form id="loginForm">
+          <div class="form-inline">
+            <div class="form-group mb-2">
+              <label for="user" class="sr-only">User</label>
+              <input class="form-control" id="user" value="" placeholder="User">
+            </div>
+            <div class="form-group mx-sm-3 mb-2">
+              <label for="password" class="sr-only">Password</label>
+              <input type="password" class="form-control" value="" id="password" placeholder="Password">
+            </div>
+            <div class="form-group mb-2">
+              <label for="name" class="sr-only">name</label>
+              <input class="form-control" id="name" value="" placeholder="Name">
+            </div>
+          </div>
+          <div class="form-inline">
+            <button type="submit" id="loginBtn" class="btn btn-primary mb-2">EMAIL登入</button> &nbsp;
+            <button type="button" id="emailRegisterBtn" class="btn btn-success mb-2">EMAIL註冊</button> &nbsp;
+            <button type="button" id="ldapLoginBtn" class="btn btn-primary mb-2">LDAP登入</button> &nbsp;
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div id="mapid"></div>
+
+  <script>
+    function getParam(name, url) {
+      if (!url) url = window.location.href;
+      name = name.replace(/[\[\]]/g, '\\$&');
+      var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+      if (!results) return null;
+      if (!results[2]) return '';
+      return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+
+    var redIcon = new L.Icon({
+      iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+
+    var mymap = L.map('mapid')
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+      maxZoom: 18,
+      id: 'mapbox.streets'
+    }).addTo(mymap);
+  </script>
+  <script src="main.js"></script>
+
+</body>
+
+</html>
