@@ -278,6 +278,16 @@ class Lab {
       throw new Error('You do not has access to this beaker')
     }
   }
+  async ruleContextGet (beakerId, foreignField, foreignValue) {
+    this.checkRequest({ beakerId })
+
+    const collection = this.database.collection(beakerId)
+    const conditions = {
+      [foreignField]: foreignValue,
+      __version: { $ne: -1 }
+    }
+    return collection.findOne(conditions, { projection: { __old: 0 } })
+  }
   async create (socket, request, cb) {
     try {
       this.checkRequest(request)
@@ -288,7 +298,14 @@ class Lab {
       compound.__version = 0
       CompoundUtils.validateObject(compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.create)
-      let passACL = await ruleRunner.run({ request: { compound, user: socket.user } })
+      const context = {
+        request: {
+          compound,
+          user: socket.user
+        },
+        get: this.ruleContextGet.bind(this)
+      }
+      let passACL = await ruleRunner.run(context)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -322,7 +339,14 @@ class Lab {
       query.conditions = { ...parsedConditions, __version: { $ne: -1 } }
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
-      let passACL = await ruleRunner.run({ request: { user: socket.user, socketId: socket.id } }, query)
+      const context = {
+        request: {
+          user: socket.user,
+          socketId: socket.id
+        },
+        get: this.ruleContextGet.bind(this)
+      }
+      let passACL = await ruleRunner.run(context, query)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -377,7 +401,15 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.get)
-      let passACL = await ruleRunner.run({ compound, request: { user: socket.user, socketId: socket.id } })
+      const context = {
+        compound,
+        request: {
+          user: socket.user,
+          socketId: socket.id
+        },
+        get: this.ruleContextGet.bind(this)
+      }
+      let passACL = await ruleRunner.run(context)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -429,7 +461,8 @@ class Lab {
           user: socket.user,
           compound: newCompound,
           socketId: socket.id
-        }
+        },
+        get: this.ruleContextGet.bind(this)
       }
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.update)
       let passACL = await ruleRunner.run(context)
@@ -484,7 +517,15 @@ class Lab {
 
       /* TODO: rule validation */
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.delete)
-      let passACL = await ruleRunner.run({ compound, request: { user: socket.user, socketId: socket.id } })
+      const context = {
+        compound,
+        request: {
+          user: socket.user,
+          socketId: socket.id
+        },
+        get: this.ruleContextGet.bind(this)
+      }
+      let passACL = await ruleRunner.run(context)
       if (!passACL) {
         throw new Error('Access denined')
       }
@@ -531,7 +572,14 @@ class Lab {
       query.conditions = parsedConditions
 
       let ruleRunner = new RuleRunner(this.beakers[query.beakerId].rule.list)
-      let passACL = await ruleRunner.run({ request: { user: socket.user, socketId: socket.id } }, query)
+      const context = {
+        request: {
+          user: socket.user,
+          socketId: socket.id
+        },
+        get: this.ruleContextGet.bind(this)
+      }
+      let passACL = await ruleRunner.run(context, query)
       if (!passACL) {
         throw new Error('Access denined')
       }

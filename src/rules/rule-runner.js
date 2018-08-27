@@ -36,6 +36,15 @@ class RuleRunner {
       isCompound: false,
       memberCounter: 0
     }
+    context = {
+      ...context,
+      contains: function (array, value) {
+        return array.includes(value)
+      },
+      date: function (value) {
+        return new Date(value)
+      }
+    }
     const result = await this.execute(this.ast, states, context, query)
 
     if (result instanceof PotentialMatch) return result.valueOf()
