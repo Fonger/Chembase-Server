@@ -147,7 +147,7 @@ class RuleRunner {
       if (states.memberCounter === 0) states.isCompound = false
       return states.compound
     }
-    let output = [object, object[node.property.name]]
+    let output = [object, object[name]]
     return output
   }
 }
