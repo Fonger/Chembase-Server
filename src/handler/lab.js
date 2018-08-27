@@ -594,9 +594,7 @@ class Lab {
         socket.listeningChangeStreamMap = new Map()
       }
 
-      const subscriptionId = changeStreamGroup.uniqueCounter
-        ? ++changeStreamGroup.uniqueCounter
-        : 0
+      const subscriptionId = ++changeStreamGroup.uniqueCounter
 
       const handler = (err, changeData) => {
         socket.emit('change' + subscriptionId, err, changeData)
@@ -783,7 +781,8 @@ class Lab {
           changeStreamGroup.callbackHandlers.clear()
           this.changeStreamGroups.delete(key)
         })
-      // changeStreamGroup[i].setMaxListeners(1000);
+        // changeStreamGroup[i].setMaxListeners(1000);
+        changeStreamGroup.uniqueCounter = 0
       }
     }
     return changeStreamGroup
