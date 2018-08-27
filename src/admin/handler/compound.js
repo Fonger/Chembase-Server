@@ -79,8 +79,9 @@ function deleteCompound (req, res, next) {
     if (response.result.n === 0) {
       throw new Error('Compound does not exist')
     }
-    // req.collection.deleteOne({ _id }, req.body.options || null).then(response => {}, console.error)
-    res.json({ compound: EJSON.stringify({ _id }) })
+    return req.collection.deleteOne({ _id }, req.body.options || null).then(response => {
+      res.json({ compound: EJSON.stringify({ _id }) })
+    })
   }).catch(next)
 }
 
