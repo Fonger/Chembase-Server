@@ -403,7 +403,7 @@ class Lab {
 
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.get)
       const context = {
-        compound,
+        compound: BSON.deserialize(compound),
         request: {
           user: socket.user,
           socketId: socket.id
