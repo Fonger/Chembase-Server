@@ -684,28 +684,29 @@ class Lab {
                 }
               ]
             }
-          },
-          {
-            $project: {
-              type: {
-                $cond: {
-                  if: { $eq: [ '$operationType', 'insert' ] },
-                  then: 'create',
-                  else: {
-                    $cond: {
-                      if: { $eq: [ '$fullDocument.__version', -1 ] },
-                      then: 'delete',
-                      else: '$operationType'
-                    }
-                  }
-                }
-              },
-              compound: '$fullDocument',
-              updateDescription: 1
-            }
           }
         ]
       }
+
+      pipeline.push({
+        $project: {
+          type: {
+            $cond: {
+              if: { $eq: [ '$operationType', 'insert' ] },
+              then: 'create',
+              else: {
+                $cond: {
+                  if: { $eq: [ '$fullDocument.__version', -1 ] },
+                  then: 'delete',
+                  else: '$operationType'
+                }
+              }
+            }
+          },
+          compound: '$fullDocument',
+          updateDescription: 1
+        }
+      })
 
       const options = {
         fullDocument: 'updateLookup'
