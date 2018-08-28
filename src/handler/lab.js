@@ -299,6 +299,15 @@ class Lab {
         compound._id = BSON.ObjectId.createFromHexString(compound._id)
       }
 
+      const __date = new Date()
+      if (Array.isArray(request.serverDatePaths)) {
+        let newSetData = {}
+        request.serverDatePaths.forEach(path => {
+          newSetData[path] = __date
+        })
+        CompoundUtils.dotNotationToObject(compound, newSetData, true)
+      }
+
       compound.__version = 0
       CompoundUtils.validateObject(compound)
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.create)
@@ -307,7 +316,8 @@ class Lab {
           compound,
           user: socket.user
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date
       }
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
@@ -349,7 +359,8 @@ class Lab {
           socketId: socket.id,
           conditions: parsedConditions
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date: new Date()
       }
       let passACL = await ruleRunner.run(context, query)
       if (!passACL) {
@@ -412,7 +423,8 @@ class Lab {
           user: socket.user,
           socketId: socket.id
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date: new Date()
       }
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
@@ -452,6 +464,14 @@ class Lab {
       if (!compound) throw new Error('Compound does not exist')
 
       const newSetData = BSON.deserialize(Buffer.from(request.data)) || {}
+
+      const __date = new Date()
+      if (Array.isArray(request.serverDatePaths)) {
+        request.serverDatePaths.forEach(path => {
+          newSetData[path] = __date
+        })
+      }
+
       let noOperation = false
       let newCompound = CompoundUtils.dotNotationToObject(compound, newSetData)
       if (!newCompound) {
@@ -467,7 +487,8 @@ class Lab {
           compound: newCompound,
           socketId: socket.id
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date
       }
       let ruleRunner = new RuleRunner(this.beakers[request.beakerId].rule.update)
       let passACL = await ruleRunner.run(context)
@@ -528,7 +549,8 @@ class Lab {
           user: socket.user,
           socketId: socket.id
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date: new Date()
       }
       let passACL = await ruleRunner.run(context)
       if (!passACL) {
@@ -583,7 +605,8 @@ class Lab {
           socketId: socket.id,
           conditions: parsedConditions
         },
-        get: this.ruleContextGet.bind(this)
+        get: this.ruleContextGet.bind(this),
+        __date: new Date()
       }
       let passACL = await ruleRunner.run(context, query)
       if (!passACL) {

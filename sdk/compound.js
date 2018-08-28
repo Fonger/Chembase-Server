@@ -12,6 +12,7 @@
 
 var Buffer = require('buffer').Buffer
 var BSON = require('bson')
+var utils = require('./utils')
 var bson = new BSON()
 
 function Compound () {
@@ -42,11 +43,14 @@ Compound.prototype.data = function () {
 
 Compound.prototype.update = function (compoundData, replace) {
   var self = this
+  var serverDatePaths = utils.extractServerDatePaths(compoundData)
+
   var request = {
     beakerId: this._beaker.beakerId,
     _id: this.data()._id.toHexString(),
     data: bson.serialize(compoundData),
-    replace: replace || false
+    replace: replace || false,
+    serverDatePaths: serverDatePaths
   }
   var promise = new Promise(function (resolve, reject) {
     self._beaker._lab.socket.emit('update', request, function (err, result) {

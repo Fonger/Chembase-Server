@@ -42,6 +42,7 @@ class RuleRunner {
         return array.includes(value)
       },
       date: function (value) {
+        if (typeof value === 'undefined') value = context.__date
         return new Date(value)
       }
     }

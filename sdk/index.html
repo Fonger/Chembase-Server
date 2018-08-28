@@ -17,7 +17,7 @@
             try {
                 var lab = new Chembase.Lab('testdb');
 
-                let user = await lab.register({
+                let user = await lab.login({
                     method: 'email',
                     email: 'testgmail@gmail.com',
                     password: '5678'
@@ -25,8 +25,9 @@
                 console.log(user)
 
                 await lab.changePassword('5678')
-                let qq = await lab.verify('5b75a3769f6aa10a4917d8fa', '2b6a9eab4455cb423c7e4ba26383aed9')
-                console.log('verify qq', qq)
+                
+                //let qq = await lab.verify('5b83cb491d98a4466514aa59', 'f624e81bb2f9065928ea5a772d0286a4')
+                //console.log('verify qq', qq)
                 let beaker = lab.beaker('beaker1');
                 
                 let compounds = await beaker.find().where('ggg').lt(6);
@@ -42,6 +43,8 @@
                     else console.log(change);
                 })
                 console.log(sub)
+
+                await sleep(1000);
 
                 let compound;
                 compound = await beaker.create({testString: 'Hello', QQ: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
@@ -82,12 +85,12 @@
                 })
                 await sleep(2000)
 
-                let unsub = await beaker.unsubscribe()
-                console.log(unsub);
-                console.log('unsub')
+                //let unsub = await beaker.unsubscribe()
+                //console.log(unsub);
+                //console.log('unsub')
 
-                await lab.logout()
-                await sleep(4000);
+                //await lab.logout()
+                //await sleep(4000);
                 //lab.socket.disconnect();
                 //compound = await beaker.create({ testString: 'Hello', testNumber: 123, ggg: 4, testDecimal: 123.45, testDate: new Date() });
                 //console.log(compound.data())

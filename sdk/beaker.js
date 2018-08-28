@@ -58,9 +58,12 @@ Beaker.prototype.constructor = Beaker
 Beaker.prototype.create = function (data, callback) {
   var self = this
 
+  var serverDatePaths = utils.extractServerDatePaths(data)
+
   var request = {
     beakerId: this.beakerId,
-    data: bson.serialize(data)
+    data: bson.serialize(data),
+    serverDatePaths: serverDatePaths
   }
 
   if (this.txnSessionId) request.txnSessionId = this.txnSessionId
@@ -166,6 +169,45 @@ Beaker.prototype.get = function (id, callback) {
       callback(err)
     })
   }
+  return promise
+}
+
+/**
+ * Update a compound with given id.
+ *
+ * Passing a `callback` executes the query.
+ *
+ * ####Example
+ *
+ *     query.update('myid')
+ *     query.delete('myid', callback)
+ *
+ * @param {String} id compound id
+ * @param {Object} update update content
+ * @param {Function} [callback]
+ * @return {Promise<result>} result
+ * @api public
+ */
+Beaker.prototype.update = function (id, update, callback) {
+  var self = this
+  var serverDatePaths = utils.extractServerDatePaths(update)
+  console.log(serverDatePaths)
+  var request = {
+    beakerId: this.beakerId,
+    _id: id,
+    data: bson.serialize(update),
+    serverDatePaths: serverDatePaths
+  }
+  var promise = new Promise(function (resolve, reject) {
+    self._lab.socket.emit('update', request, function (err, result) {
+      if (err) return reject(err)
+      if (!result.data) return reject(new Error('This compound no longer exists'))
+
+      /* merge update data back to _rawData */
+
+      resolve(result.data)
+    })
+  })
   return promise
 }
 

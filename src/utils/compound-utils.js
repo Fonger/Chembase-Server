@@ -5,8 +5,8 @@ const forbiddenSetFieldNames = ['__old', '__version']
 const deepEqual = require('bson-fast-deep-equal')
 
 module.exports = {
-  dotNotationToObject: function (baseDocument, setNewDocument) {
-    baseDocument = cloneDeep(baseDocument)
+  dotNotationToObject: function (baseDocument, setNewDocument, noClone) {
+    if (!noClone) baseDocument = cloneDeep(baseDocument)
     let noOperation = true
     for (let [path, value] of Object.entries(setNewDocument)) {
       let keys = path.split('.')

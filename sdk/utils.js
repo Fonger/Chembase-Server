@@ -1,5 +1,7 @@
 'use strict'
 
+const isPlainObject = require('is-plain-object')
+
 /*!
  * ignore
  */
@@ -119,4 +121,20 @@ function assign (target, varArgs) {
 
 exports.isArgumentsObject = function (v) {
   return Object.prototype.toString.call(v) === '[object Arguments]'
+}
+
+exports.$ServerDate = function () {}
+
+exports.extractServerDatePaths = function extractServerDatePaths (obj, current, output = []) {
+  for (var key in obj) {
+    var value = obj[key]
+    var newKey = (current ? current + '.' + key : key) // joined key with dot
+    if (value && isPlainObject(value)) {
+      return extractServerDatePaths(value, newKey, output) // it's a nested object, so do it again
+    } else if (value instanceof exports.$ServerDate) {
+      output.push(newKey)
+      delete obj[key]
+    }
+  }
+  return output
 }
