@@ -33,7 +33,7 @@
     "jsonwebtoken": "^8.3.0",
     "ldapauth-fork": "^4.0.2",
     "mongo-parse": "^2.1.0",
-    "mongodb": "^3.1.4",
+    "mongodb": "^3.1.13",
     "mongodb-extjson": "github:Fonger/mongodb-extjson#patch-1",
     "mongoose": "^5.2.10",
     "mongoose-unique-array": "^0.2.0",
