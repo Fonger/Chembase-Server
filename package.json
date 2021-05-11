@@ -35,7 +35,7 @@
     "mongo-parse": "^2.1.0",
     "mongodb": "^3.1.13",
     "mongodb-extjson": "github:Fonger/mongodb-extjson#patch-1",
-    "mongoose": "^5.2.10",
+    "mongoose": "^5.7.5",
     "mongoose-unique-array": "^0.2.0",
     "node-pty": "^0.7.6",
     "nodemailer": "^4.6.8",
