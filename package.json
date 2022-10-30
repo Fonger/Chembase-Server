@@ -39,7 +39,7 @@
     "mongoose-unique-array": "^0.2.0",
     "node-pty": "^0.7.6",
     "nodemailer": "^4.6.8",
-    "socket.io": "^2.1.1",
+    "socket.io": "^2.5.0",
     "socket.io-redis": "^5.2.0"
   },
   "devDependencies": {
